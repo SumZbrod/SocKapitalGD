@@ -1,0 +1,83 @@
+[gd_scene load_steps=2 format=3 uid="uid://cpwdrknl4gdqk"]
+
+[ext_resource type="Script" uid="uid://bp8uosc2eot8g" path="res://script/grock_main.gd" id="1_itxqv"]
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_itxqv")
+
+[node name="LabelState" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -19.0
+offset_top = 81.0
+offset_right = 21.0
+offset_bottom = 104.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 32
+text = "Welcome"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="BankScore" type="Label" parent="."]
+layout_mode = 0
+offset_left = 34.0
+offset_top = 18.0
+offset_right = 187.0
+offset_bottom = 85.0
+theme_override_font_sizes/font_size = 48
+
+[node name="SpawnRoot" type="Node" parent="."]
+
+[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
+_spawnable_scenes = PackedStringArray("uid://bcmreqckndjor")
+spawn_path = NodePath("../SpawnRoot")
+spawn_limit = 5
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -20.0
+offset_top = -192.0
+offset_right = 20.0
+offset_bottom = -152.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="MessageLabel" type="Label" parent="VBox"]
+visible = false
+layout_mode = 2
+
+[node name="BalanceLabel" type="Label" parent="VBox"]
+visible = false
+layout_mode = 2
+
+[node name="InputField" type="LineEdit" parent="VBox"]
+visible = false
+layout_mode = 2
+
+[node name="NextButton" type="Button" parent="VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 49
+text = "START"
+
+[connection signal="pressed" from="VBox/NextButton" to="." method="_on_next_button_pressed"]
