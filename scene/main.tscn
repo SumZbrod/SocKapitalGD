@@ -78,6 +78,6 @@ layout_mode = 2
 [node name="NextButton" type="Button" parent="VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 49
-text = "START"
+text = "Присоединиться"
 
 [connection signal="pressed" from="VBox/NextButton" to="." method="_on_next_button_pressed"]

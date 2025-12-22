@@ -1,5 +1,7 @@
 extends Control
 
+@export var start_player_count := 2
+@export var player_cost := 100
 @onready var message_label: Label = $VBox/MessageLabel
 @onready var balance_label: Label = $VBox/BalanceLabel
 @onready var input_field: LineEdit = $VBox/InputField
@@ -10,13 +12,14 @@ enum {
 	JOIN,
 	REQUESTING,
 	VOTING,
+	GAMEEND,
 }
 var state := JOIN
 
 const PORT: int = 8080
 var SERVER_URL: String = "ws://127.0.0.1:" + str(PORT)
 
-var players_data: Dictionary = {}  # {player_id: {'ready': bool, 'balance': int, 'request': int, 'vote': [{player_id: int}]}}
+var players_data: Dictionary = {}  # {player_id: {'alive': bool 'ready': bool, 'balance': int, 'request': int, 'vote': [{player_id: int}]}}
 
 func _ready() -> void:
 	input_field.text_submitted.connect(_on_text_submitted)
@@ -61,7 +64,7 @@ func start_client() -> void:
 func _on_player_connected(id: int) -> void:
 	# ГЕНЕРИРУЕМ БАЛАНС ПРИ ПОДКЛЮЧЕНИИ!
 	if state == JOIN:
-		players_data[id] = {'ready': false, 'balance': 0, 'request': 0, 'vote': []}
+		players_data[id] = {'alive': true, 'ready': false, 'balance': 0, 'request': 0, 'vote': []}
 		print("Подключился ID " + str(id) + " с информацией: " + str(players_data[id]))
 		print(players_data)
 	else:
@@ -81,9 +84,7 @@ func _on_connection_failed() -> void:
 	message_label.text = "Сервер недоступен"
 
 func _on_next_button_pressed() -> void:
-	print('_on_next_button_pressed()')
 	input_field.clear()
-	#update_game()
 	update_game.rpc_id(1, multiplayer.get_unique_id())
 	
 func _on_text_submitted(text: String) -> void:
@@ -109,16 +110,15 @@ func update_players_data(player_date: Dictionary) -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func update_game(pl_id: int) -> void:
-	print('players_data ', players_data)
-	print('update_game():')
+	print('state ', state)
 	if multiplayer.is_server():
 		match state: 
 			JOIN:
 				_on_join(pl_id)
+			REQUESTING:
+				_on_requesting(pl_id)
 
 func _on_join(pl_id: int):
-	if !multiplayer.is_server():
-		return
 	if pl_id in players_data:
 		players_data[pl_id]['ready'] = !players_data[pl_id]['ready']
 		var ready_players := 0
@@ -127,14 +127,16 @@ func _on_join(pl_id: int):
 				ready_players += 1
 		var update_date = {}
 		var local_update_date = {}
-		local_update_date['label_state'] = "К игре готовы: " + str(ready_players) + " / " + str(players_data.size())
+		update_date['label_state'] = "К игре готовы: " + str(ready_players) + " / " + str(players_data.size())
 		if players_data[pl_id]['ready']:
-			update_date['next_button'] = "Готов"
+			local_update_date['next_button'] = "Готов"
 		else:
-			update_date['next_button'] = "Не готов"
+			local_update_date['next_button'] = "Не готов"
 		update_player_screen.rpc_id(pl_id, local_update_date)
-		update_all_player_screen.rpc_id(1, update_date)
-
+		update_all_player_screen(update_date)
+		if ready_players == start_player_count:
+			state = REQUESTING
+			
 @rpc("any_peer", "call_remote", "reliable")
 func update_player_screen(update_date: Dictionary) -> void:
 	for key in update_date:
@@ -144,10 +146,23 @@ func update_player_screen(update_date: Dictionary) -> void:
 			"next_button":
 				next_button.text = update_date[key]
 
-@rpc("any_peer", "call_remote", "reliable")
 func update_all_player_screen(update_date: Dictionary) -> void:
-	print("players_data ", players_data)
 	for pl_id in players_data:
-		print('update_all_player_screen pl_id ', pl_id)
 		update_player_screen.rpc_id(pl_id, update_date)
+	
+func _on_requesting(pl_id: int):
+	if !multiplayer.is_server():
+		return
+	if pl_id in players_data:
+		var alive_count := 0
+		var update_date = {}
+		for pid in players_data:
+			if players_data[pid]['alive']:
+				alive_count += 1
+		if alive_count > 1:
+			update_date['label_state'] = "Бюджет: %d" % (alive_count * player_cost)
+		else:
+			state = GAMEEND 
+		update_all_player_screen(update_date)
+		
 		
