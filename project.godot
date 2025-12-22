@@ -13,7 +13,7 @@ config_version=5
 config/name="SocKapital"
 run/main_scene="uid://cpwdrknl4gdqk"
 config/features=PackedStringArray("4.5", "Forward Plus")
-config/icon="res://icon.svg"
+config/icon="uid://bkmmvn43vop3x"
 
 [display]
 
