@@ -63,8 +63,12 @@ offset_bottom = -152.0
 grow_horizontal = 2
 grow_vertical = 0
 
+[node name="HSlider" type="HSlider" parent="VBox"]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+value = 100.0
+
 [node name="MessageLabel" type="Label" parent="VBox"]
-visible = false
 layout_mode = 2
 
 [node name="BalanceLabel" type="Label" parent="VBox"]
@@ -80,4 +84,5 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 49
 text = "Присоединиться"
 
+[connection signal="value_changed" from="VBox/HSlider" to="." method="_on_h_slider_value_changed"]
 [connection signal="pressed" from="VBox/NextButton" to="." method="_on_next_button_pressed"]

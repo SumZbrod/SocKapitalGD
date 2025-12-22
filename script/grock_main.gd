@@ -7,6 +7,7 @@ extends Control
 @onready var input_field: LineEdit = $VBox/InputField
 @onready var label_state: Label = $LabelState
 @onready var next_button: Button = $VBox/NextButton
+@onready var h_slider: HSlider = $VBox/HSlider
 
 enum {
 	JOIN,
@@ -20,6 +21,7 @@ const PORT: int = 8080
 var SERVER_URL: String = "ws://127.0.0.1:" + str(PORT)
 
 var players_data: Dictionary = {}  # {player_id: {'alive': bool 'ready': bool, 'balance': int, 'request': int, 'vote': [{player_id: int}]}}
+var game_data: Dictionary = {'init_budget': 0}
 
 func _ready() -> void:
 	input_field.text_submitted.connect(_on_text_submitted)
@@ -38,7 +40,6 @@ func start_server() -> void:
 	
 	multiplayer.multiplayer_peer = peer
 	print("Сервер на порту " + str(PORT))
-	message_label.text = "Сервер онлайн (ID: 1)"
 	balance_label.text = "Баланс сервера: ∞"
 	input_field.visible = false
 	
@@ -50,12 +51,10 @@ func start_client() -> void:
 	var err: Error = peer.create_client(SERVER_URL)
 	if err != OK:
 		push_error("Ошибка клиента: " + str(err))
-		message_label.text = "Ошибка подключения"
 		return
 	
 	multiplayer.multiplayer_peer = peer
 	print("Подключение...")
-	message_label.text = "Подключаюсь..."
 	balance_label.text = ""
 	
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
@@ -77,7 +76,6 @@ func _on_player_disconnected(id: int) -> void:
 func _on_connected_to_server() -> void:
 	var my_id = multiplayer.get_unique_id()
 	print("Подключен! ID: " + str(my_id))
-	message_label.text = "Готов к чату! (ID: " + str(my_id) + ")"
 	input_field.placeholder_text = "Напиши и Enter (ID: " + str(my_id) + ")"
 
 func _on_connection_failed() -> void:
@@ -93,30 +91,20 @@ func _on_text_submitted(text: String) -> void:
 	# Клиент отправляет серверу
 	_on_next_button_pressed()
 	
-@rpc("any_peer", "call_remote", "reliable")
-func send_message(player_id: int, message: String) -> void:
-	if multiplayer.is_server():
-		display_message.rpc(player_id, message)
-		for _player_id in players_data:
-			update_players_data.rpc_id(_player_id, players_data[_player_id])
-
-@rpc("authority", "call_remote", "reliable")
-func display_message(player_id: int, message: String) -> void:
-	message_label.text = "Игрок " + str(player_id) + ": " + message
-
 @rpc("authority", "call_remote", "reliable")
 func update_players_data(player_date: Dictionary) -> void:
 	balance_label.text = "Твой баланс: " + str(player_date['balance'])
 
 @rpc("any_peer", "call_remote", "reliable")
 func update_game(pl_id: int) -> void:
-	print('state ', state)
 	if multiplayer.is_server():
 		match state: 
 			JOIN:
 				_on_join(pl_id)
 			REQUESTING:
 				_on_requesting(pl_id)
+			_:
+				push_error("Uknown state: %s" % state)
 
 func _on_join(pl_id: int):
 	if pl_id in players_data:
@@ -132,37 +120,88 @@ func _on_join(pl_id: int):
 			local_update_date['next_button'] = "Готов"
 		else:
 			local_update_date['next_button'] = "Не готов"
-		update_player_screen.rpc_id(pl_id, local_update_date)
+		update_player_screen.rpc_id(pl_id, state, local_update_date)
 		update_all_player_screen(update_date)
-		if ready_players == start_player_count:
-			state = REQUESTING
-			
+		if check_all_alive_ready():
+			change_state(REQUESTING)
+
+
 @rpc("any_peer", "call_remote", "reliable")
-func update_player_screen(update_date: Dictionary) -> void:
+func update_player_screen(_state, update_date: Dictionary) -> void:
 	for key in update_date:
 		match key:
 			"label_state":
 				label_state.text = update_date[key]
 			"next_button":
 				next_button.text = update_date[key]
+			"h_slider":
+				h_slider.max_value = update_date[key]
+			"message_label":
+				message_label.text = update_date[key]
+			"slider_editable":
+				h_slider.editable = update_date[key]
+			_:
+				push_error("Uknown key: %s" % key)
+	match _state:
+		JOIN:
+			h_slider.visible = false
+		REQUESTING:
+			h_slider.visible = true
+		"":
+			return
+		_:
+			push_error("Uknown state: %s" % _state)
+			
+func check_all_alive_ready() -> bool:
+	for pl_id in players_data:
+		if !players_data[pl_id]['ready'] and players_data[pl_id]['alive']:
+			return false
+	return true
 
 func update_all_player_screen(update_date: Dictionary) -> void:
 	for pl_id in players_data:
-		update_player_screen.rpc_id(pl_id, update_date)
+		update_player_screen.rpc_id(pl_id, state, update_date)
+
+func change_state(new_state):
+	state = new_state
+	for pid in players_data:
+		players_data[pid]['ready'] = false
+	var alive_count := 0
+	for pid in players_data:
+		if players_data[pid]['alive']:
+			alive_count += 1
+	if alive_count <= 1:
+		state = GAMEEND
 	
+	match state:
+		REQUESTING:
+			_set_requesting(alive_count)
+
+func _set_requesting(alive_count: int):
+	var update_date = {}
+	var budget := alive_count * player_cost
+	game_data['init_budget'] = budget
+	update_date['label_state'] = "Бюджет: %d" % budget
+	update_date['h_slider'] = budget
+	update_date['next_button'] = "Запросить"
+	update_date['slider_editable'] = true
+	update_all_player_screen(update_date)
+	
+
 func _on_requesting(pl_id: int):
 	if !multiplayer.is_server():
 		return
 	if pl_id in players_data:
-		var alive_count := 0
-		var update_date = {}
-		for pid in players_data:
-			if players_data[pid]['alive']:
-				alive_count += 1
-		if alive_count > 1:
-			update_date['label_state'] = "Бюджет: %d" % (alive_count * player_cost)
-		else:
-			state = GAMEEND 
-		update_all_player_screen(update_date)
+		if players_data[pl_id]['ready']:
+			return
+		var update_player_date = {}
+		players_data[pl_id]['ready'] = true
+		update_player_date['slider_editable'] = false
+		update_player_date['next_button'] = "Ваш запрос: %d" % h_slider.value
 		
-		
+		update_player_screen.rpc(pl_id, update_player_date)
+
+func _on_h_slider_value_changed(value: float) -> void:
+	var update_date = {}
+	update_date['message_label'] = "Ваш запрос: %d" % int(value)
+	update_player_screen("", update_date)
