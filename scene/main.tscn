@@ -1,8 +1,9 @@
-[gd_scene load_steps=7 format=3 uid="uid://cpwdrknl4gdqk"]
+[gd_scene load_steps=8 format=3 uid="uid://cpwdrknl4gdqk"]
 
 [ext_resource type="Script" uid="uid://bp8uosc2eot8g" path="res://script/main.gd" id="1_itxqv"]
 [ext_resource type="Texture2D" uid="uid://dadgywhnpctu5" path="res://assets/img/avas.png" id="2_v0l8b"]
 [ext_resource type="PackedScene" uid="uid://blr8ogvrdpsy8" path="res://scene/voting_container.tscn" id="2_wp4xf"]
+[ext_resource type="Material" uid="uid://2x3k2shhnrnq" path="res://shader/shaking.tres" id="3_4j5ol"]
 [ext_resource type="Shader" uid="uid://dscihv7iayhrv" path="res://shader/show.gdshader" id="4_0ha60"]
 [ext_resource type="Texture2D" uid="uid://cvutlcds7ttye" path="res://assets/img/wallpaper.webp" id="4_brvut"]
 
@@ -110,6 +111,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="MyAva" type="NinePatchRect" parent="Account"]
+material = ExtResource("3_4j5ol")
 custom_minimum_size = Vector2(128, 128)
 layout_mode = 2
 texture = ExtResource("2_v0l8b")

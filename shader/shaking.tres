@@ -1,0 +1,6 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://2x3k2shhnrnq"]
+
+[ext_resource type="Shader" uid="uid://madkvrfhvfvp" path="res://shader/shaking.gdshader" id="1_4q2wy"]
+
+[resource]
+shader = ExtResource("1_4q2wy")

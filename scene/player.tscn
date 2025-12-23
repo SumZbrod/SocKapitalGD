@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://bcmreqckndjor"]
+[gd_scene load_steps=4 format=3 uid="uid://bcmreqckndjor"]
 
 [ext_resource type="Script" uid="uid://5vg3qnhwmyuu" path="res://script/player.gd" id="1_hjaqi"]
 [ext_resource type="Texture2D" uid="uid://dadgywhnpctu5" path="res://assets/img/avas.png" id="1_xo3ru"]
+[ext_resource type="Material" uid="uid://2x3k2shhnrnq" path="res://shader/shaking.tres" id="2_fvtld"]
 
 [node name="CheckButton" type="CheckButton"]
 offset_right = 128.0
@@ -25,6 +26,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="NinePatchRect" type="NinePatchRect" parent="Account"]
+material = ExtResource("2_fvtld")
 custom_minimum_size = Vector2(128, 128)
 layout_mode = 2
 texture = ExtResource("1_xo3ru")
