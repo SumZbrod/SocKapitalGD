@@ -34,7 +34,7 @@ func _on_chose_acc(toggled_on: bool):
 			i += 1
 	change_decition.emit(get_choose())
 	
-func get_choose():
+func get_choose() -> int:
 	for acc in get_children():
 		if acc.button_pressed:
 			return acc.get_pid()

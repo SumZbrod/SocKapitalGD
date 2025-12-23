@@ -14,14 +14,14 @@ extends Control
 
 @onready var label_state: Label = $UpperBlock/LabelState
 @onready var voting_container: VotingContainerClass = $UpperBlock/VotingContainer
-
-
+@onready var next_round_timer: Timer = $NextRoundTimer
 
 enum {
 	JOIN,
 	REQUESTING,
 	VOTING,
 	GAMEEND,
+	ELIMINATING
 }
 var state := JOIN
 
@@ -29,7 +29,7 @@ const PORT: int = 8080
 var SERVER_URL: String = "ws://127.0.0.1:" + str(PORT)
 
 var players_data: Dictionary = {}  # {player_id: {'name':str, 'request_result':int, 'alive': bool 'ready': bool, 'balance': int, 'request': int, 'vote': [{player_id: int}]}}
-var game_data: Dictionary = {'init_budget': 0}
+var game_data: Dictionary = {'init_budget': 0, 'voting': {}}
 var max_time := 1.
 var time := 0.
 
@@ -91,8 +91,9 @@ func _on_connection_failed() -> void:
 
 func get_player_data() -> Dictionary:
 	var res = {}
-	res["h_slider_valuer"] = h_slider.value
+	res["h_slider_value"] = h_slider.value
 	res["input_field_text"] = input_field.text
+	res["vote_pid"] = voting_container.get_choose() 
 	return res
 
 func _on_next_button_pressed() -> void:
@@ -113,7 +114,7 @@ func update_game(pl_id: int, player_data: Dictionary) -> void:
 			REQUESTING:
 				_on_requesting(pl_id, player_data)
 			VOTING:
-				_on_voting(pl_id)
+				_on_voting(pl_id, player_data)
 			_:
 				push_error("Uknown state: %s" % state)
 
@@ -135,7 +136,7 @@ func _on_join(pl_id: int, player_data: Dictionary) -> void:
 		local_update_date["my_name"] = players_data[pl_id]['name']
 
 		local_update_date["my_ava"] = get_ava_rect(players_data[pl_id]['ava_id']) 
-		local_update_date["my_score"] = players_data[pl_id]['balance']
+		local_update_date["my_score"] = str(int(players_data[pl_id]['balance']))
 		update_player_data.rpc_id(pl_id, local_update_date)
 		var new_acc = {
 			'pid' = pl_id,
@@ -146,9 +147,7 @@ func _on_join(pl_id: int, player_data: Dictionary) -> void:
 		update_all_player_screen(update_date)
 		if check_all_alive_ready():
 			change_state(REQUESTING)
-		#TODO
-		#change_state(REQUESTING)
-		
+
 func get_ava_rect(_id:int) -> Rect2:
 	var r = 341
 	var x = _id % 3
@@ -163,7 +162,7 @@ func update_player_data(update_date: Dictionary) -> void:
 			"my_name":
 				my_name.text = update_date[key]
 			"my_score":
-				my_score.text = str(int(update_date[key]))
+				my_score.text = update_date[key]
 			"my_ava":
 				my_ava.region_rect = update_date[key]
 			"my_result":
@@ -172,6 +171,8 @@ func update_player_data(update_date: Dictionary) -> void:
 				label_state.text = update_date[key]
 			"next_button":
 				next_button.text = update_date[key]
+			"next_button_disabled":
+				next_button.disabled = update_date[key]
 			"h_slider_max":
 				h_slider.max_value = update_date[key]
 			"h_slider_value":
@@ -202,6 +203,10 @@ func update_player_data(update_date: Dictionary) -> void:
 			account.visible = true
 			next_button.visible = true
 			input_field.visible = false
+		ELIMINATING:
+			voting_container.visible = true
+			h_slider.visible = false
+			next_button.visible = false
 		_:
 			push_error("Uknown state: %s" % state)
 			
@@ -217,24 +222,32 @@ func update_all_player_screen(update_date: Dictionary) -> void:
 
 func change_state(new_state):
 	state = new_state
+	next_button.disabled = false
 	update_players_state()
-	for pid in players_data:
-		players_data[pid]['ready'] = false
+	
 	var alive_count := 0
 	for pid in players_data:
 		if players_data[pid]['alive']:
 			alive_count += 1
 	if alive_count <= 1:
 		state = GAMEEND
-	
+		
 	match state:
 		REQUESTING:
 			_set_requesting(alive_count)
 		VOTING:
 			_set_voting()
+		ELIMINATING:
+			_set_eliminating()
 		_:
 			push_error("Uknown state: %s" % state)
-
+			
+	game_data = {'init_budget': 0, 'voting': {}}
+	for pid in players_data:
+		players_data[pid]['ready'] = false
+		players_data[pid]['request'] = 0
+		players_data[pid]['request_result'] = 0
+		players_data[pid]['vote'] = []
 func update_players_state():
 	for pid in players_data:
 		update_player_state.rpc_id(pid, state)
@@ -264,8 +277,8 @@ func _on_requesting(pl_id: int, player_data: Dictionary):
 		var update_player_date = {}
 		players_data[pl_id]['ready'] = true
 		for key in player_data:
-			if key == "h_slider_valuer":
-				players_data[pl_id]["request"] = player_data["h_slider_valuer"]
+			if key == "h_slider_value":
+				players_data[pl_id]["request"] = player_data["h_slider_value"]
 		update_player_date['slider_editable'] = false
 		update_player_date['next_button'] = "Ваш запрос: %d" % players_data[pl_id]['request'] 
 		update_player_data.rpc_id(pl_id, update_player_date)
@@ -302,8 +315,6 @@ func _set_voting():
 		power_sum_request += players_data[pid]['request'] ** inequality_degree
 	var shrink_budget = min(init_budget, 2*init_budget - sum_request)
 	shrink_budget = max(player_cost, abs(shrink_budget)) * (1 if shrink_budget > 0 else -1)
-	print('shrink_budget ', shrink_budget)
-	print('power_sum_request ', power_sum_request)
 	for pid in players_data:
 		if shrink_budget == init_budget:
 			players_data[pid]['request_result'] = players_data[pid]['request']
@@ -325,7 +336,7 @@ func _set_voting():
 		var new_player_date = {
 			"my_result":  "Получили: " + str(int(players_data[pid]['request_result'])), 
 			"label_state": "Выберите за кого голосовать",
-			"my_score": players_data[pid]['balance'],
+			"my_score": str(int(players_data[pid]['balance'])),
 			"next_button": "Пропустить\nголосование",
 			"slider_editable": true,
 			"h_slider_max": players_data[pid]['balance'],
@@ -337,10 +348,27 @@ func _set_voting():
 				voting_vars.append(sub_pid)
 		new_player_date["voting_vars"] = voting_vars
 		update_player_data.rpc_id(pid, new_player_date)
-	print("players_data ", players_data)
+	game_data["voting"] = {}
 	
-func _on_voting(pl_id):
-	return pl_id
+func _on_voting(pl_id: int, player_data: Dictionary) -> void:
+	if players_data[pl_id]['ready']:
+		return
+	var vote_pid = player_data['vote_pid'] 
+	if vote_pid in game_data["voting"]:
+		game_data["voting"][vote_pid] += player_data["h_slider_value"] 
+	else:
+		game_data["voting"][vote_pid] = player_data["h_slider_value"] 
+	players_data[pl_id]['ready'] = true
+	players_data[pl_id]['balance'] -= player_data["h_slider_value"] 
+	var new_player_date = {
+		"next_button": "Вы проголосовали",
+		"next_button_disabled": true,
+		"slider_editable": false,
+		"my_score": str(int(players_data[pl_id]['balance'])),
+	}
+	update_player_data.rpc_id(pl_id, new_player_date)
+	if check_all_alive_ready():
+		change_state(ELIMINATING)
 
 func _on_change_voting(pid:int):
 	if pid > 0 and h_slider.value > 0:
@@ -348,4 +376,29 @@ func _on_change_voting(pid:int):
 	else:
 		next_button.text = "Пропустить\nголосование"
 		
-		
+func _set_eliminating():
+	var max_vote := 0
+	var max_pid := 0
+	for pid in game_data['voting']:
+		if max_vote < game_data['voting'][pid]:
+			max_pid = pid
+			max_vote = game_data['voting'][pid]
+	var new_data = {}
+	if max_vote <= 0:
+		var max_balance := 0
+		for pid in players_data:
+			if players_data[pid]['balance'] > max_balance:
+				max_balance = players_data[pid]['balance']
+				max_pid = pid
+		new_data['label_state'] = "Игру покидает: %s" % players_data[max_pid]['name']
+	else:
+		new_data['label_state'] = "Игроки проголосовали против: %s" % players_data[max_pid]['name']
+
+	new_data['message_label'] = "У %s было на счету %d" % [players_data[max_pid]['name'], players_data[max_pid]['balance']]
+	new_data['voting_vars'] = [max_pid]
+	players_data[max_pid]['alive'] = false
+	update_all_player_screen(new_data)
+	next_round_timer.start()
+
+func _on_next_round_timer_timeout() -> void:
+	change_state(REQUESTING)

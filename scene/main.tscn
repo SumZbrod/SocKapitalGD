@@ -112,5 +112,9 @@ vertical_alignment = 1
 [node name="MyResult" type="Label" parent="Account"]
 layout_mode = 2
 
+[node name="NextRoundTimer" type="Timer" parent="."]
+one_shot = true
+
 [connection signal="value_changed" from="VBox/HSlider" to="." method="_on_h_slider_value_changed"]
 [connection signal="pressed" from="VBox/NextButton" to="." method="_on_next_button_pressed"]
+[connection signal="timeout" from="NextRoundTimer" to="." method="_on_next_round_timer_timeout"]
