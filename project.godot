@@ -19,10 +19,6 @@ config/icon="uid://bkmmvn43vop3x"
 
 window/size/viewport_width=648
 
-[global_group]
-
-player=""
-
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0

@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://cpwdrknl4gdqk"]
+[gd_scene load_steps=3 format=3 uid="uid://cpwdrknl4gdqk"]
 
-[ext_resource type="Script" uid="uid://bp8uosc2eot8g" path="res://script/grock_main.gd" id="1_itxqv"]
+[ext_resource type="Script" uid="uid://bp8uosc2eot8g" path="res://script/main.gd" id="1_itxqv"]
+[ext_resource type="Texture2D" uid="uid://dadgywhnpctu5" path="res://assets/img/avas.png" id="2_v0l8b"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -10,37 +11,29 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_itxqv")
+start_player_count = null
+player_cost = null
 
-[node name="LabelState" type="Label" parent="."]
+[node name="VoitintgBlock" type="VBoxContainer" parent="."]
+z_index = 1
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -19.0
-offset_top = 81.0
-offset_right = 21.0
-offset_bottom = 104.0
+offset_left = -71.0
+offset_top = 20.0
+offset_right = 71.0
+offset_bottom = 69.0
 grow_horizontal = 2
+
+[node name="LabelState" type="Label" parent="VoitintgBlock"]
+layout_mode = 2
 theme_override_font_sizes/font_size = 32
 text = "Welcome"
 
-[node name="HBoxContainer" type="HBoxContainer" parent="."]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="BankScore" type="Label" parent="."]
-layout_mode = 0
-offset_left = 34.0
-offset_top = 18.0
-offset_right = 187.0
-offset_bottom = 85.0
-theme_override_font_sizes/font_size = 48
+[node name="VotingAccs" type="HBoxContainer" parent="VoitintgBlock"]
+layout_mode = 2
+size_flags_horizontal = 4
 
 [node name="SpawnRoot" type="Node" parent="."]
 
@@ -64,6 +57,7 @@ grow_horizontal = 2
 grow_vertical = 0
 
 [node name="HSlider" type="HSlider" parent="VBox"]
+visible = false
 custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
 value = 100.0
@@ -71,18 +65,53 @@ value = 100.0
 [node name="MessageLabel" type="Label" parent="VBox"]
 layout_mode = 2
 
-[node name="BalanceLabel" type="Label" parent="VBox"]
-visible = false
-layout_mode = 2
-
 [node name="InputField" type="LineEdit" parent="VBox"]
-visible = false
+custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
+placeholder_text = "Ваше имя"
 
 [node name="NextButton" type="Button" parent="VBox"]
+visible = false
 layout_mode = 2
 theme_override_font_sizes/font_size = 49
 text = "Присоединиться"
+
+[node name="Account" type="VBoxContainer" parent="."]
+visible = false
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -128.0
+offset_top = -227.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="MyName" type="Label" parent="Account"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 23
+text = "Vladislav"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MyAva" type="NinePatchRect" parent="Account"]
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 2
+texture = ExtResource("2_v0l8b")
+region_rect = Rect2(682, 0, 341, 341)
+
+[node name="MyScore" type="Label" parent="Account"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 23
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MyResult" type="Label" parent="Account"]
+layout_mode = 2
 
 [connection signal="value_changed" from="VBox/HSlider" to="." method="_on_h_slider_value_changed"]
 [connection signal="pressed" from="VBox/NextButton" to="." method="_on_next_button_pressed"]

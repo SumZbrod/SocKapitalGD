@@ -1,30 +1,15 @@
-class_name PlayerClass extends Control
+class_name PlayerClass extends CheckButton
+#@onready var label_name: Label = $Name
+#@onready var nine_patch_rect: NinePatchRect = $LabelName
+@onready var nine_patch_rect: NinePatchRect = $Account/NinePatchRect
+@onready var label_name: Label = $Account/LabelName
 
-var player_id : int
-@onready var label_name: Label = $VBoxContainer/Name
+func update(data: Dictionary):
+	var r = 341
+	var x = data['ava_id'] % 3
+	var y = data['ava_id'] / 3
+	nine_patch_rect.region_rect = Rect2(r*x, r*y, r, r)
+	label_name.text = str(data['name'])
 
-var players_name = ['Vladislav', "Sasha", "Maria", "Nikolos", "Rob", "Sakura"]
-var is_setup = false
-
-func setup(n: int) -> void:
-	player_id = n
-	label_name.text = players_name[n]
-@onready var button: Button = $VBoxContainer/Button
-var ws := WebSocketMultiplayerPeer.new()
-
-func _ready():
-	ws.create_client("ws://127.0.0.1:8080")
-	multiplayer.multiplayer_peer = ws
-
-	button.text = "Никто не нажимал"
-	button.pressed.connect(_on_pressed)
-
-func _process(_delta):
-	ws.poll()
-
-func _on_pressed():
-	rpc("press_button")
-
-@rpc("authority")
-func update_button(text):
-	button.text = "Последний: " + text
+func _ready() -> void:
+	update({'name': 'test', 'ava_id': 7})

@@ -1,57 +1,35 @@
 [gd_scene load_steps=3 format=3 uid="uid://bcmreqckndjor"]
 
 [ext_resource type="Script" uid="uid://5vg3qnhwmyuu" path="res://script/player.gd" id="1_hjaqi"]
-[ext_resource type="Texture2D" uid="uid://djmxwj8146xej" path="res://assets/img/person.png" id="1_xo3ru"]
+[ext_resource type="Texture2D" uid="uid://dadgywhnpctu5" path="res://assets/img/avas.png" id="1_xo3ru"]
 
-[node name="Player" type="Control" groups=["player"]]
-custom_minimum_size = Vector2(128, 128)
-layout_mode = 3
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -64.0
-offset_top = -64.0
-offset_right = 64.0
-offset_bottom = 64.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="CheckButton" type="CheckButton"]
+offset_right = 128.0
+offset_bottom = 31.0
+text = "Выбрать"
 script = ExtResource("1_hjaqi")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="."]
-custom_minimum_size = Vector2(128, 128)
+[node name="Account" type="VBoxContainer" parent="."]
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+anchors_preset = -1
+anchor_left = 0.5
+anchor_top = 5.9350004
+anchor_right = 0.5
+anchor_bottom = 5.9350004
+offset_left = -64.0
+offset_top = -163.98502
+offset_right = 64.0
+offset_bottom = 0.014984131
 
-[node name="Name" type="Label" parent="VBoxContainer"]
+[node name="NinePatchRect" type="NinePatchRect" parent="Account"]
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 2
+texture = ExtResource("1_xo3ru")
+region_rect = Rect2(682, 0, 341, 341)
+
+[node name="LabelName" type="Label" parent="Account"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 23
 text = "Vladislav"
 horizontal_alignment = 1
 vertical_alignment = 1
-
-[node name="NinePatchRect" type="NinePatchRect" parent="VBoxContainer" groups=["player"]]
-custom_minimum_size = Vector2(128, 128)
-layout_mode = 2
-texture = ExtResource("1_xo3ru")
-
-[node name="Score" type="Label" parent="VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 23
-text = "0"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="LineEdit" type="LineEdit" parent="VBoxContainer"]
-layout_mode = 2
-alignment = 1
-max_length = 4
-
-[node name="Button" type="Button" parent="VBoxContainer"]
-custom_minimum_size = Vector2(0, 32)
-layout_mode = 2
