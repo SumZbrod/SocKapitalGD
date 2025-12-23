@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://cpwdrknl4gdqk"]
+[gd_scene load_steps=4 format=3 uid="uid://cpwdrknl4gdqk"]
 
 [ext_resource type="Script" uid="uid://bp8uosc2eot8g" path="res://script/main.gd" id="1_itxqv"]
 [ext_resource type="Texture2D" uid="uid://dadgywhnpctu5" path="res://assets/img/avas.png" id="2_v0l8b"]
+[ext_resource type="PackedScene" uid="uid://blr8ogvrdpsy8" path="res://scene/voting_container.tscn" id="2_wp4xf"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -11,10 +12,8 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_itxqv")
-start_player_count = null
-player_cost = null
 
-[node name="VoitintgBlock" type="VBoxContainer" parent="."]
+[node name="UpperBlock" type="VBoxContainer" parent="."]
 z_index = 1
 layout_mode = 1
 anchors_preset = 5
@@ -26,12 +25,12 @@ offset_right = 71.0
 offset_bottom = 69.0
 grow_horizontal = 2
 
-[node name="LabelState" type="Label" parent="VoitintgBlock"]
+[node name="LabelState" type="Label" parent="UpperBlock"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
 text = "Welcome"
 
-[node name="VotingAccs" type="HBoxContainer" parent="VoitintgBlock"]
+[node name="VotingContainer" parent="UpperBlock" instance=ExtResource("2_wp4xf")]
 layout_mode = 2
 size_flags_horizontal = 4
 

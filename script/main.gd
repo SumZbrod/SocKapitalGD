@@ -4,16 +4,18 @@ extends Control
 @export var player_cost := 100
 @onready var message_label: Label = $VBox/MessageLabel
 @onready var input_field: LineEdit = $VBox/InputField
-@onready var label_state: Label = $VoitintgBlock/LabelState
 @onready var next_button: Button = $VBox/NextButton
 @onready var h_slider: HSlider = $VBox/HSlider
-@onready var voting_accs: HBoxContainer = $VoitintgBlock/VotingAccs
 @onready var my_name: Label = $Account/MyName
 @onready var my_ava: NinePatchRect = $Account/MyAva
 @onready var my_score: Label = $Account/MyScore
 @onready var my_result: Label = $Account/MyResult
 @onready var account: VBoxContainer = $Account
-const player_account = preload("res://scene/player.tscn")
+
+@onready var label_state: Label = $UpperBlock/LabelState
+@onready var voting_container: VotingContainerClass = $UpperBlock/VotingContainer
+
+
 
 enum {
 	JOIN,
@@ -32,6 +34,7 @@ var max_time := 1.
 var time := 0.
 
 func _ready() -> void:
+	voting_container.change_decition.connect(_on_change_voting)
 	input_field.text_submitted.connect(_on_text_submitted)
 	state = JOIN
 	if OS.has_feature("dedicated_server") or "--server" in OS.get_cmdline_args():
@@ -134,15 +137,17 @@ func _on_join(pl_id: int, player_data: Dictionary) -> void:
 		local_update_date["my_ava"] = get_ava_rect(players_data[pl_id]['ava_id']) 
 		local_update_date["my_score"] = players_data[pl_id]['balance']
 		update_player_data.rpc_id(pl_id, local_update_date)
-		var new_acc = player_account.instantiate()
-		var acc_info = {"name": players_data[pl_id]['name'], "ava_id": players_data[pl_id]['ava_id']}
-		voting_accs.add_child(new_acc)
-		new_acc.update(acc_info)
+		var new_acc = {
+			'pid' = pl_id,
+			'ava_id' = players_data[pl_id]['ava_id'],
+			'name' = players_data[pl_id]['name'],
+		}
+		update_date['new_acc'] = new_acc
 		update_all_player_screen(update_date)
 		if check_all_alive_ready():
 			change_state(REQUESTING)
 		#TODO
-		change_state(REQUESTING)
+		#change_state(REQUESTING)
 		
 func get_ava_rect(_id:int) -> Rect2:
 	var r = 341
@@ -175,8 +180,10 @@ func update_player_data(update_date: Dictionary) -> void:
 				message_label.text = update_date[key]
 			"slider_editable":
 				h_slider.editable = update_date[key]
+			"new_acc":
+				voting_container.add_new_member(update_date[key])
 			"voting_vars":
-				
+				voting_container.show_voting(update_date[key])
 			_:
 				push_error("Uknown key: %s" % key)
 	match state:
@@ -189,7 +196,9 @@ func update_player_data(update_date: Dictionary) -> void:
 			next_button.visible = true
 			h_slider.visible = true
 			input_field.visible = false
+			voting_container.visible = false
 		VOTING:
+			voting_container.visible = true
 			account.visible = true
 			next_button.visible = true
 			input_field.visible = false
@@ -270,7 +279,10 @@ func _on_h_slider_value_changed(value: float) -> void:
 			update_date['message_label'] = "Ваш запрос: %d" % int(value)
 		VOTING:
 			update_date['message_label'] = "На голосование вы поставили: %d" % int(value)
-			
+			if value > 0 and voting_container.get_choose() > 0:
+				update_date['next_button'] = "Проголосовать"
+			else:
+				update_date['next_button'] = "Пропустить\nголосование"
 	update_player_data(update_date)
 
 func get_player_property(pid: int, property_name: String):
@@ -322,10 +334,18 @@ func _set_voting():
 		var voting_vars = []
 		for sub_pid in players_data:
 			if sub_pid != pid and players_data[sub_pid]['alive']:
-				voting_vars.append(players_data[sub_pid]["ava_id"])
+				voting_vars.append(sub_pid)
 		new_player_date["voting_vars"] = voting_vars
 		update_player_data.rpc_id(pid, new_player_date)
 	print("players_data ", players_data)
 	
 func _on_voting(pl_id):
 	return pl_id
+
+func _on_change_voting(pid:int):
+	if pid > 0 and h_slider.value > 0:
+		next_button.text = "Проголосовать"
+	else:
+		next_button.text = "Пропустить\nголосование"
+		
+		
