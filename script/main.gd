@@ -1,6 +1,6 @@
 extends Control
 
-@export var start_player_count := 2
+@export var start_player_count := 5
 @export var player_cost := 100
 @onready var message_label: Label = $VBox/MessageLabel
 @onready var input_field: LineEdit = $VBox/InputField
@@ -28,7 +28,7 @@ var state := JOIN
 const PORT: int = 8080
 var SERVER_URL: String = "ws://127.0.0.1:" + str(PORT)
 
-var players_data: Dictionary = {}  # {player_id: {'name':str, 'request_result':int, 'alive': bool 'ready': bool, 'balance': int, 'request': int, 'vote': [{player_id: int}]}}
+var players_data: Dictionary = {}  # {player_id: {'name':str, 'request_result':int, 'alive': bool 'ready': bool, 'balance': int, 'request': int, 'vote': {player_id: int}}}
 var game_data: Dictionary = {'init_budget': 0, 'voting': {}}
 var max_time := 1.
 var time := 0.
@@ -71,12 +71,9 @@ func start_client() -> void:
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 
-func _on_player_connected(id: int) -> void:
+func _on_player_connected(_id: int) -> void:
 	if state == JOIN:
-		var ava_id = (ava_id_shift + ava_id_step*players_data.size()) % 9
-		players_data[id] = {'alive': true, 'ready': false, 'name': id, 'ava_id': ava_id, 'balance': 0, 'request': 0, 'request_result':0, 'vote': []}
-		print("Подключился ID " + str(id) + " с информацией: " + str(players_data[id]))
-		print(players_data)
+		print("Подключился")
 	else:
 		print("Игра уже началась")
 		
@@ -102,16 +99,23 @@ func _on_next_button_pressed() -> void:
 	var player_data := get_player_data()
 	update_game.rpc_id(1, multiplayer.get_unique_id(), player_data)
 
+@rpc("any_peer", "call_remote", "reliable")
+func create_new_player(id: int):
+	var ava_id = (ava_id_shift + ava_id_step*players_data.size()) % 9
+	var _peer_address = multiplayer.multiplayer_peer.get_peer_address(id)
+	players_data[id] = {'alive': true, 'ready': false, 'name': id, 'ava_id': ava_id, 'balance': 0, 'request': 0, 'request_result':0, 'vote': {}}
+	print(players_data)
+	
 func _on_text_submitted(text: String) -> void:
 	if text.strip_edges().is_empty():
 		return
+	create_new_player.rpc_id(1, multiplayer.get_unique_id())
+	next_button.visible = true
 	_on_next_button_pressed()
 
 @rpc("any_peer", "call_remote", "reliable")
 func update_game(pl_id: int, player_data: Dictionary) -> void:
 	if !multiplayer.is_server() or !players_data[pl_id]['alive']:
-		push_warning("cant do")
-		push_warning(players_data)
 		return
 	match state: 
 		JOIN:
@@ -121,11 +125,13 @@ func update_game(pl_id: int, player_data: Dictionary) -> void:
 		VOTING:
 			_on_voting(pl_id, player_data)
 		_:
-			push_error("Uknown state: %s" % state)
+			push_warning("[update_game] Uknown state: %s" % state)
 
 func _on_join(pl_id: int, player_data: Dictionary) -> void:
 	if pl_id in players_data:
-		players_data[pl_id]['ready'] = !players_data[pl_id]['ready']
+		if players_data[pl_id]['ready']:
+			return
+		players_data[pl_id]['ready'] = true
 		players_data[pl_id]['name'] = player_data['input_field_text']
 		var ready_players := 0
 		for pl_data in players_data.values():
@@ -134,30 +140,29 @@ func _on_join(pl_id: int, player_data: Dictionary) -> void:
 		var update_date = {}
 		var local_update_date = {}
 		update_date['label_state'] = "К игре готовы: " + str(ready_players) + " / " + str(players_data.size())
-		if players_data[pl_id]['ready']:
-			local_update_date['next_button'] = "Готов"
-		else:
-			local_update_date['next_button'] = "Не готов"
+		local_update_date['next_button'] = "Готов"
 		local_update_date["my_name"] = players_data[pl_id]['name']
-
 		local_update_date["my_ava"] = get_ava_rect(players_data[pl_id]['ava_id']) 
 		local_update_date["my_score"] = str(int(players_data[pl_id]['balance']))
 		update_player_data.rpc_id(pl_id, local_update_date)
-		var new_acc = {
-			'pid' = pl_id,
-			'ava_id' = players_data[pl_id]['ava_id'],
-			'name' = players_data[pl_id]['name'],
-		}
-		update_date['new_acc'] = new_acc
+		var new_accs = []
+		for pid in players_data:
+			var new_acc = {
+				'pid' = pid,
+				'ava_id' = players_data[pid]['ava_id'],
+				'name' = players_data[pid]['name'],
+			}
+			new_accs.append(new_acc)
+		update_date['new_accs'] = new_accs
 		update_all_player_screen(update_date)
-		if check_all_alive_ready():
-			change_state(REQUESTING)
+		if check_all_alive_ready() and players_data.size() == start_player_count:
+			next_round_timer.start()
 
-func get_ava_rect(_id:int) -> Rect2:
+func get_ava_rect(id_:int) -> Rect2:
 	var r = 341
-	var x = _id % 3
+	var x = id_ % 3
 	@warning_ignore("integer_division")
-	var y = _id / 3
+	var y = id_ / 3
 	return Rect2(r*x, r*y, r, r)
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -186,12 +191,12 @@ func update_player_data(update_date: Dictionary) -> void:
 				message_label.text = update_date[key]
 			"slider_editable":
 				h_slider.editable = update_date[key]
-			"new_acc":
-				voting_container.add_new_member(update_date[key])
+			"new_accs":
+				voting_container.add_new_members(update_date[key])
 			"voting_vars":
 				voting_container.show_voting(update_date[key])
 			_:
-				push_error("Uknown key: %s" % key)
+				push_warning("[update_player_data] Uknown key: %s" % key)
 	match state:
 		JOIN:
 			next_button.disabled = false
@@ -217,7 +222,7 @@ func update_player_data(update_date: Dictionary) -> void:
 			h_slider.visible = false
 			next_button.visible = false
 		_:
-			push_error("Uknown state: %s" % state)
+			push_warning("[update_player_data] Uknown state: %s" % state)
 			
 func check_all_alive_ready() -> bool:
 	for pl_id in players_data:
@@ -239,6 +244,7 @@ func change_state(new_state):
 	for pid in players_data:
 		if players_data[pid]['alive']:
 			alive_count += 1
+		players_data[pid]['ready'] = false
 	if alive_count <= 1:
 		state = GAMEEND
 		
@@ -250,7 +256,7 @@ func change_state(new_state):
 		ELIMINATING:
 			_set_eliminating()
 		_:
-			push_error("Uknown state: %s" % state)
+			push_warning("[change_state] Uknown state: %s" % state)
 			
 
 func update_players_state():
@@ -268,7 +274,7 @@ func _set_requesting(alive_count: int):
 		players_data[pid]['ready'] = false
 		players_data[pid]['request'] = 0
 		players_data[pid]['request_result'] = 0
-		players_data[pid]['vote'] = []
+		players_data[pid]['vote'] = {}
 		
 	var budget := alive_count * player_cost
 	game_data['init_budget'] = budget
@@ -311,13 +317,6 @@ func _on_h_slider_value_changed(value: float) -> void:
 				update_date['next_button'] = "Пропустить\nголосование"
 	update_player_data(update_date)
 
-func get_player_property(pid: int, property_name: String):
-	match property_name:
-		'request':
-			return get_tree().get_multiplayer().get_peer(pid).h_slider.value
-		_:
-			push_error("uncnown property name %s" % property_name)
-			
 func _set_voting():
 	var init_budget = game_data['init_budget']
 	var sum_request := 0
@@ -327,9 +326,7 @@ func _set_voting():
 		sum_request += players_data[pid]['request']
 		power_sum_request += players_data[pid]['request'] ** inequality_degree
 	
-	print("sum_request ", sum_request)
 	var shrink_budget = min(init_budget, 2*init_budget - sum_request)
-	print("shrink_budget ", shrink_budget)
 	shrink_budget = max(player_cost, abs(shrink_budget)) * (1 if shrink_budget > 0 else -1)
 	for pid in players_data:
 		if shrink_budget == init_budget:
@@ -369,16 +366,19 @@ func _set_voting():
 	game_data["voting"] = {}
 	
 func _on_voting(pl_id: int, player_data: Dictionary) -> void:
-	#if players_data[pl_id]['ready']:
-		#return
+	if players_data[pl_id]['ready']:
+		return
 	var vote_pid = player_data['vote_pid'] 
-	players_data[pl_id]['vote'] = {player_data['vote_pid']: player_data["h_slider_value"] }
-	if vote_pid in game_data["voting"]:
-		game_data["voting"][vote_pid] += player_data["h_slider_value"] 
+	if vote_pid > 0:
+		players_data[pl_id]['vote'] = {player_data['vote_pid']: player_data["h_slider_value"] }
+		players_data[pl_id]['balance'] -= player_data["h_slider_value"] 
+		if vote_pid in game_data["voting"]:
+			game_data["voting"][vote_pid] += player_data["h_slider_value"] 
+		else:
+			game_data["voting"][vote_pid] = player_data["h_slider_value"] 
 	else:
-		game_data["voting"][vote_pid] = player_data["h_slider_value"] 
+		players_data[pl_id]['vote'] = {}
 	players_data[pl_id]['ready'] = true
-	players_data[pl_id]['balance'] -= player_data["h_slider_value"] 
 	var new_player_date = {
 		"next_button": "Вы проголосовали",
 		"next_button_disabled": true,

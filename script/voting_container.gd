@@ -14,16 +14,22 @@ func __test():
 		{"pid": 12, "name": "b", "ava_id": 5},
 		{"pid": 13, "name": "c", "ava_id": 8},
 	]
-	for acc in new_accs:
-		print(acc)
-		add_new_member(acc)
+	add_new_members(new_accs)
 
-func add_new_member(data: Dictionary):
-	var new_acc: PlayerClass = player_account.instantiate()
-	add_child(new_acc)
-	new_acc.update(data)
-	new_acc.toggled.connect(_on_chose_acc)
-	acc_chooses.append(false)
+func add_new_members(data_list: Array):
+	var childrens = get_children()
+	for data in data_list:
+		var skip_flag = false
+		for child in childrens:
+			if child.get_pid() == data['pid']:
+				skip_flag = true
+		if skip_flag:
+			continue
+		var new_acc: PlayerClass = player_account.instantiate()
+		add_child(new_acc)
+		new_acc.update(data)
+		new_acc.toggled.connect(_on_chose_acc)
+		acc_chooses.append(false)
 
 func _on_chose_acc(toggled_on: bool):
 	if toggled_on:

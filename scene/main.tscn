@@ -24,6 +24,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_itxqv")
+start_player_count = 3
 
 [node name="UpperBlock" type="VBoxContainer" parent="."]
 z_index = 1
@@ -125,6 +126,7 @@ vertical_alignment = 1
 layout_mode = 2
 
 [node name="NextRoundTimer" type="Timer" parent="."]
+wait_time = 5.0
 one_shot = true
 
 [node name="Wallpaper" type="NinePatchRect" parent="."]
