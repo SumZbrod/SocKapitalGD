@@ -110,6 +110,8 @@ func _on_text_submitted(text: String) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func update_game(pl_id: int, player_data: Dictionary) -> void:
 	if !multiplayer.is_server() or !players_data[pl_id]['alive']:
+		push_warning("cant do")
+		push_warning(players_data)
 		return
 	match state: 
 		JOIN:
@@ -250,13 +252,7 @@ func change_state(new_state):
 		_:
 			push_error("Uknown state: %s" % state)
 			
-	#game_data = {'init_budget': 0, 'voting': {}}
-	for pid in players_data:
-		players_data[pid]['ready'] = false
-		players_data[pid]['request'] = 0
-		players_data[pid]['request_result'] = 0
-		players_data[pid]['vote'] = []
-		
+
 func update_players_state():
 	for pid in players_data:
 		update_player_state.rpc_id(pid, state)
@@ -267,6 +263,13 @@ func update_player_state(_state):
 
 func _set_requesting(alive_count: int):
 	var update_date = {}
+	game_data = {'init_budget': 0, 'voting': {}}
+	for pid in players_data:
+		players_data[pid]['ready'] = false
+		players_data[pid]['request'] = 0
+		players_data[pid]['request_result'] = 0
+		players_data[pid]['vote'] = []
+		
 	var budget := alive_count * player_cost
 	game_data['init_budget'] = budget
 	update_date['label_state'] = "Бюджет: %d" % budget
@@ -366,8 +369,8 @@ func _set_voting():
 	game_data["voting"] = {}
 	
 func _on_voting(pl_id: int, player_data: Dictionary) -> void:
-	if players_data[pl_id]['ready']:
-		return
+	#if players_data[pl_id]['ready']:
+		#return
 	var vote_pid = player_data['vote_pid'] 
 	players_data[pl_id]['vote'] = {player_data['vote_pid']: player_data["h_slider_value"] }
 	if vote_pid in game_data["voting"]:
@@ -393,6 +396,8 @@ func _on_change_voting(pid:int):
 		next_button.text = "Пропустить\nголосование"
 		
 func _set_eliminating():
+	if !multiplayer.is_server():
+		return
 	var max_vote := 0
 	var max_pid := 0
 	for pid in game_data['voting']:
@@ -435,7 +440,7 @@ func send_dead_log():
 			if state == REQUESTING:
 				log_message += "{0} запросил {1} получил {2}\n".format([pid_data['name'], pid_data['request'], pid_data['request_result']])
 			if state == VOTING:
-				log_message += "{0} проголосовал {1}\n".format([pid_data['name'], pid_data['vote']])
+				log_message += "{0} проголосовал {1}\n".format([pid_data['name'], str(pid_data['vote'])])
 	for pid in players_data:
 		if !players_data[pid]['alive']:
 			update_player_data.rpc_id(pid, {"message_label": log_message})

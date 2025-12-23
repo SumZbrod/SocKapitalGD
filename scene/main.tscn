@@ -1,9 +1,20 @@
-[gd_scene load_steps=5 format=3 uid="uid://cpwdrknl4gdqk"]
+[gd_scene load_steps=7 format=3 uid="uid://cpwdrknl4gdqk"]
 
 [ext_resource type="Script" uid="uid://bp8uosc2eot8g" path="res://script/main.gd" id="1_itxqv"]
 [ext_resource type="Texture2D" uid="uid://dadgywhnpctu5" path="res://assets/img/avas.png" id="2_v0l8b"]
 [ext_resource type="PackedScene" uid="uid://blr8ogvrdpsy8" path="res://scene/voting_container.tscn" id="2_wp4xf"]
+[ext_resource type="Shader" uid="uid://dscihv7iayhrv" path="res://shader/show.gdshader" id="4_0ha60"]
 [ext_resource type="Texture2D" uid="uid://cvutlcds7ttye" path="res://assets/img/wallpaper.webp" id="4_brvut"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4j5ol"]
+shader = ExtResource("4_0ha60")
+shader_parameter/spread = 0.5
+shader_parameter/size = 0.5
+shader_parameter/snow_color = Color(1, 1, 1, 1)
+shader_parameter/snow_transparency = 0.2
+shader_parameter/speed = 0.5
+shader_parameter/wind = 0.0
+shader_parameter/num_of_layers = 40
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -116,8 +127,9 @@ layout_mode = 2
 [node name="NextRoundTimer" type="Timer" parent="."]
 one_shot = true
 
-[node name="NinePatchRect" type="NinePatchRect" parent="."]
+[node name="Wallpaper" type="NinePatchRect" parent="."]
 z_index = -3
+material = SubResource("ShaderMaterial_4j5ol")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
