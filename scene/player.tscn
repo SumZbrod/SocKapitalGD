@@ -7,7 +7,6 @@
 [node name="CheckButton" type="CheckButton"]
 offset_right = 128.0
 offset_bottom = 31.0
-disabled = true
 text = "Выбрать"
 script = ExtResource("1_hjaqi")
 
