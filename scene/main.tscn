@@ -33,16 +33,17 @@ layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -71.0
-offset_top = 20.0
-offset_right = 71.0
-offset_bottom = 69.0
+offset_left = -80.5
+offset_top = 30.0
+offset_right = 80.5
+offset_bottom = 79.0
 grow_horizontal = 2
 
 [node name="LabelState" type="Label" parent="UpperBlock"]
 layout_mode = 2
+size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 32
-text = "Welcome"
+text = "SocKapital"
 
 [node name="VotingContainer" parent="UpperBlock" instance=ExtResource("2_wp4xf")]
 layout_mode = 2
@@ -98,8 +99,10 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -128.0
-offset_top = -227.0
+offset_left = -151.61984
+offset_top = -251.89258
+offset_right = -23.619873
+offset_bottom = -24.892578
 grow_horizontal = 0
 grow_vertical = 0
 
@@ -128,7 +131,7 @@ vertical_alignment = 1
 layout_mode = 2
 
 [node name="NextRoundTimer" type="Timer" parent="."]
-wait_time = 5.0
+wait_time = 0.1
 one_shot = true
 
 [node name="Wallpaper" type="NinePatchRect" parent="."]

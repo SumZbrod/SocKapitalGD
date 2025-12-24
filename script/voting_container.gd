@@ -3,7 +3,7 @@ class_name VotingContainerClass extends HBoxContainer
 const player_account = preload("res://scene/player.tscn")
 var acc_chooses = []
 signal change_decition(pid:int)
-#
+
 #func _ready() -> void:
 	#__test()
 	#return
@@ -13,6 +13,9 @@ func __test():
 		{"pid": 1, "name": "a", "ava_id": 1},
 		{"pid": 12, "name": "b", "ava_id": 5},
 		{"pid": 13, "name": "c", "ava_id": 8},
+		{"pid": 2, "name": "z", "ava_id": 2},
+		{"pid": 22, "name": "x", "ava_id": 6},
+		{"pid": 23, "name": "y", "ava_id": 7},
 	]
 	add_new_members(new_accs)
 
