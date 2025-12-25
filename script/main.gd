@@ -98,6 +98,10 @@ func _on_connected_to_server() -> void:
 	var pid = multiplayer.get_unique_id()
 	_server_restore_screen(pid)
 	print("Подключен! ID: " + str(pid))
+	if state == JOIN:
+		message_label.text = "Ожидайте начала игры"
+	else:
+		message_label.text = "Игра уже началась"
 
 @rpc("any_peer", "call_remote", "reliable")
 func _server_restore_screen(pid: int):
@@ -507,34 +511,57 @@ func _on_change_voting(pid:int):
 func calc_voting_result():
 	var max_vote := 0
 	var max_pid := 0
+	var selected_pid := []
 	for pid in game_data['voting']:
 		if max_vote < game_data['voting'][pid]:
 			max_pid = pid
 			max_vote = game_data['voting'][pid]
-	if max_pid <= 0:
-		var max_balance := 0
+	
+	if max_pid > 0:
 		for pid in players_data:
-			if players_data[pid]['alive'] and players_data[pid]['balance'] > max_balance:
-				max_balance = players_data[pid]['balance']
-				max_pid = pid
-	game_data['vote_winner'] = {
-		'pid': max_pid,
-		'balance': players_data[max_pid]['balance'],
-		'name': players_data[max_pid]['name'],
-	}
+			if pid not in game_data['voting']:
+				continue
+			if players_data[pid]['alive'] and game_data['voting'][pid] >= max_vote:
+				selected_pid.append(pid)
+	else:
+		var max_balance := 0
+		if max_pid <= 0:
+			for pid in players_data:
+				if players_data[pid]['alive'] and players_data[pid]['balance'] > max_balance:
+					max_balance = players_data[pid]['balance']
+					max_pid = pid
+			if max_pid:
+				selected_pid = [max_pid]
+	game_data['vote_winner'] = []
+	for pid in selected_pid:
+		var winner := {
+			'pid': pid,
+			'balance': players_data[pid]['balance'],
+			'name': players_data[pid]['name'],
+		}
+		game_data['vote_winner'].append(winner)
+		
 func _server_set_eliminating_state():
 	if game_data['vote_winner']:
-		var vote_pid = game_data['vote_winner']['pid']
+		var label_state_str := "" 
+		var message_label_str := "" 
+		var voting_vars_array := []
+		var alive_count = get_alive_count() 
+		for acc_data in game_data['vote_winner']:
+			var pid = acc_data['pid']
+			players_data[pid]['alive'] = false
+			players_data[pid]['place'] = alive_count
+			_client_make_gameover.rpc_id(pid)
+			voting_vars_array.append(pid)
+			label_state_str += "Игру покидает: %s\n" % acc_data['name']
+			message_label_str += "У %s было на счету %d\n" % [acc_data['name'], acc_data['balance']]
 		var update_data = {
-			'label_state':  "Игру покидает: %s" % game_data['vote_winner']['name'],
-			'message_label': "У %s было на счету %d" % [game_data['vote_winner']['name'], game_data['vote_winner']['balance']],
-			'voting_vars': [vote_pid],
+			'label_state':  label_state_str,
+			'message_label': message_label_str,
+			'voting_vars': voting_vars_array,
 			'clear_selaction': true,
 		}
 		_server_update_all_client_screen_data(update_data)
-		players_data[vote_pid]['alive'] = false
-		players_data[vote_pid]['place'] = get_alive_count()
-		_client_make_gameover.rpc_id(vote_pid)
 		_server_set_state_aside(REQUESTING)
 	else:
 		push_warning("vote winner didn't calc")
@@ -583,24 +610,27 @@ func _on_state_timer_timeout() -> void:
 
 func _server_set_gameend_state() -> void:
 	var win_pid: int 
-	var pid_places = []
-	pid_places.resize(start_player_count+1)
+	var last_message = ''
 	for pid in players_data:
-		pid_places[players_data[pid]['place']] = pid 
 		if players_data[pid]['alive']:
 			win_pid = pid
-	var last_message = ''
-	var i := 0
-	for pid in pid_places:
-		if pid:
-			if pid > 0 and pid in players_data:
-				last_message += "#%d: %s\n" % [i+1, players_data[pid]['name']]
-		i += 1
+			players_data[pid]['place'] = 1
+			
+	for i in range(1, 1+start_player_count):
+		for pid in players_data:
+			if players_data[pid]['place'] == i:
+				last_message += "#%d: %s\n" % [i, players_data[pid]['name']]
+			
 	var update_data = {
-		'label_state':  "Игра закончена",
 		'message_label': last_message,
-		'voting_vars': [win_pid],
 		'clear_selaction': true,
 		'history_log': game_history,
 	}
+	if !win_pid:
+		update_data['label_state'] = "Все проиграли"
+		update_data['voting_vars'] = []
+	else:
+		update_data['label_state'] = "Выиграл %s: %d" % [players_data[win_pid]['name'], players_data[win_pid]['balance']]
+		update_data['voting_vars'] = [win_pid]
+		
 	_server_update_all_client_screen_data(update_data)
