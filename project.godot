@@ -13,6 +13,8 @@ config_version=5
 config/name="SocKapital"
 run/main_scene="uid://cpwdrknl4gdqk"
 config/features=PackedStringArray("4.5", "Forward Plus")
+boot_splash/bg_color=Color(0.075366445, 0.20548612, 0.097499184, 1)
+boot_splash/image="uid://db4uqjuthofgp"
 config/icon="res://assets/img/icon.png"
 
 [display]

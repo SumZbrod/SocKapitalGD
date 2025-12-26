@@ -12,12 +12,14 @@ extends Control
 @onready var my_result: Label = $Account/MyResult
 @onready var account: VBoxContainer = $Account
 @onready var history_log: TextEdit = $HistoryLog
+@onready var ping_timer: Timer = $PingTimer
 
 @onready var label_state: Label = $UpperBlock/LabelState
 @onready var voting_container: VotingContainerClass = $UpperBlock/VotingContainer
 @onready var state_timer: Timer = $StateTimer
 var new_state
 var game_history := ''
+var peer := WebSocketMultiplayerPeer.new()
 
 enum {
 	JOIN,
@@ -28,34 +30,50 @@ enum {
 }
 var state := JOIN
 
-const PORT: int = 8080
-var SERVER_URL: String = "ws://127.0.0.1:" + str(PORT)
-
 var players_data: Dictionary = {}  # {player_id: {'place': int, 'name':str, 'request_result':int, 'alive': bool 'ready': bool, 'balance': int, 'request': int, 'vote': {player_id: int}}}
 var offline_players := {};
 var game_data: Dictionary = {'init_budget': 0, 'voting': {}, 'vote_winner': {}}
-var max_time := 1.
-var time := 0.
 var ava_id_shift := randi() % 9
 var ava_id_step:int = [1, 2, 4, 5, 7, 8].pick_random()
+var player_codes = {}
+
+const PORT: int = 8080
+var SERVER_URL: String
+
+func _process(_delta):
+	if peer:
+		peer.poll()
 
 func _ready() -> void:
+	if OS.has_feature("web"):
+		SERVER_URL = "wss://soc-kapital.ru/ws/"  # Обязательно wss и путь /ws/
+	else:
+		SERVER_URL = "ws://127.0.0.1:" + str(PORT)
 	var args = OS.get_cmdline_args()
+	
 	for arg in args:
 		arg = arg as String
-		if arg.begins_with("-p="):
-			var value = arg.split("=")[1]
-			start_player_count = value.to_int()
+		if arg.begins_with(">"):
+			var players_names = arg.split(" ")
+			for pl_name in players_names:
+				var code = randi() % 1_000_000
+				player_codes[str(code)] = {'name': pl_name, 'not_used': true}
+	
+	if !player_codes:
+		var names = "ABCDEXYZW".split()
+		for i in range(start_player_count):
+			player_codes[str(i)] = {'name': names[i], 'not_used': true}
+		
 	voting_container.change_decition.connect(_on_change_voting)
 	input_field.text_submitted.connect(_on_text_submitted)
 	state = JOIN
+	
 	if OS.has_feature("dedicated_server") or "--server" in OS.get_cmdline_args():
 		start_server()
 	else:
 		start_client()
-
+	
 func start_server() -> void:
-	var peer: WebSocketMultiplayerPeer = WebSocketMultiplayerPeer.new()
 	var err: Error = peer.create_server(PORT)
 	if err != OK:
 		push_error("Ошибка сервера: " + str(err))
@@ -69,7 +87,6 @@ func start_server() -> void:
 	multiplayer.peer_disconnected.connect(_on_player_disconnected)
 
 func start_client() -> void:
-	var peer: WebSocketMultiplayerPeer = WebSocketMultiplayerPeer.new()
 	var err: Error = peer.create_client(SERVER_URL)
 	if err != OK:
 		push_error("Ошибка клиента: " + str(err))
@@ -83,10 +100,6 @@ func start_client() -> void:
 
 func _on_player_connected(pid: int) -> void:
 	_server_restore_screen(pid)
-	if state == JOIN:
-		message_label.text = "Ожидайте начала игры"
-	else:
-		message_label.text = "Игра уже началась"
 
 func _on_player_disconnected(id: int) -> void:
 	if id in players_data:
@@ -98,10 +111,6 @@ func _on_connected_to_server() -> void:
 	var pid = multiplayer.get_unique_id()
 	_server_restore_screen(pid)
 	print("Подключен! ID: " + str(pid))
-	if state == JOIN:
-		message_label.text = "Ожидайте начала игры"
-	else:
-		message_label.text = "Игра уже началась"
 
 @rpc("any_peer", "call_remote", "reliable")
 func _server_restore_screen(pid: int):
@@ -117,13 +126,26 @@ func _on_connection_failed() -> void:
 	message_label.text = "Сервер недоступен"
 
 @rpc("any_peer", "call_remote", "reliable")
-func _server_create_new_player(id: int):
+func _server_create_new_player(id: int, code_text: String):
 	if !multiplayer.is_server():
 		return
-	var ava_id = (ava_id_shift + ava_id_step*players_data.size()) % 9
-	var peer_addres = multiplayer.multiplayer_peer.get_peer_address(id)
-	players_data[id] = {'peer_addres': peer_addres, 'alive': true, 'ready': false, 'name': id, 'ava_id': ava_id, 'balance': 0, 'request': 0, 'request_result':0, 'vote': {}, 'place': 0}
-
+	print(player_codes)
+	if code_text in player_codes:
+		if player_codes[code_text]['not_used']:
+			var ava_id = (ava_id_shift + ava_id_step*players_data.size()) % 9
+			var peer_addres = multiplayer.multiplayer_peer.get_peer_address(id)
+			players_data[id] = {'peer_addres': peer_addres, 'alive': true, 'ready': false, 'name': player_codes[code_text]['name'], 'ava_id': ava_id, 'balance': 0, 'request': 0, 'request_result':0, 'vote': {}, 'place': 0}
+		else:
+			var update_date = {
+				"message_label" : "Этот код уже использован"
+			}
+			_client_change_screen_data.rpc_id(id, update_date)
+	else:
+		var update_date = {
+				"message_label" : "Неправильный код"
+		}
+		_client_change_screen_data.rpc_id(id, update_date)
+		
 func get_player_screen_data() -> Dictionary:
 	var res = {
 		"h_slider_value": h_slider.value,
@@ -141,7 +163,7 @@ func _on_text_submitted(text: String) -> void:
 		return
 	if state != JOIN:
 		return
-	_server_create_new_player.rpc_id(1, multiplayer.get_unique_id())
+	_server_create_new_player.rpc_id(1, multiplayer.get_unique_id(), text)
 	_on_next_button_pressed()
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -151,7 +173,7 @@ func _server_update_game(pid: int, player_screen_data: Dictionary) -> void:
 		return
 	if pid not in players_data:
 		push_warning("[_server_update_game] pid not in players_data")
-		push_warning("[_server_update_game] s" % str(players_data))
+		push_warning("[_server_update_game] %s" % str(players_data))
 		return
 	if players_data[pid]['ready']: 
 		push_warning("[_server_update_game] already ready")
@@ -197,10 +219,9 @@ func get_accs_list():
 ## Должен обновлять имя и обновлять VotingContaine
 ## Проверяет что игру можно начинать
 ## Не даёт повторного выполнения
-func _server_update_game_on_join(pid: int, player_data: Dictionary) -> void:
+func _server_update_game_on_join(pid: int, _player_data: Dictionary) -> void:
 	# Обновление инфы об игроке
 	players_data[pid]['ready'] = true
-	players_data[pid]['name'] = player_data['input_field_text']
 	
 	# Обновление данных экрана игроков
 	var ready_alive_players := get_alive_ready_count()
@@ -634,3 +655,14 @@ func _server_set_gameend_state() -> void:
 		update_data['voting_vars'] = [win_pid]
 		
 	_server_update_all_client_screen_data(update_data)
+		
+func _on_ping_timer_timeout() -> void:
+	if multiplayer.is_server():
+		return  
+	if multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		keep_alive_dummy.rpc_id(1, multiplayer.get_unique_id()) 
+
+@rpc("any_peer", "reliable")
+func keep_alive_dummy(pid) -> void:
+	if pid in players_data:
+		print("[%s] PING" % players_data[pid]['name'])
