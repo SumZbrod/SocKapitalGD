@@ -54,16 +54,17 @@ func _ready() -> void:
 	for arg in args:
 		arg = arg as String
 		if arg.begins_with(">"):
+			arg = arg.right(-1)
 			var players_names = arg.split(" ")
 			for pl_name in players_names:
-				var code = randi() % 1_000_000
+				var code = randi() % 1_0000
 				player_codes[str(code)] = {'name': pl_name, 'not_used': true}
-	
+				print("%s %d" % [pl_name, code])
 	if !player_codes:
 		var names = "ABCDEXYZW".split()
 		for i in range(start_player_count):
 			player_codes[str(i)] = {'name': names[i], 'not_used': true}
-		
+	start_player_count = player_codes.size()
 	voting_container.change_decition.connect(_on_change_voting)
 	input_field.text_submitted.connect(_on_text_submitted)
 	state = JOIN
@@ -129,7 +130,6 @@ func _on_connection_failed() -> void:
 func _server_create_new_player(id: int, code_text: String):
 	if !multiplayer.is_server():
 		return
-	print(player_codes)
 	if code_text in player_codes:
 		if player_codes[code_text]['not_used']:
 			var ava_id = (ava_id_shift + ava_id_step*players_data.size()) % 9
@@ -655,9 +655,14 @@ func _server_set_gameend_state() -> void:
 		update_data['voting_vars'] = [win_pid]
 		
 	_server_update_all_client_screen_data(update_data)
+	
+func print_time():
+	var time_dict = Time.get_time_dict_from_system()
+	print("%02d:%02d:%02d" % [time_dict.hour, time_dict.minute, time_dict.second])
 		
 func _on_ping_timer_timeout() -> void:
 	if multiplayer.is_server():
+		print_time()
 		return  
 	if multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		keep_alive_dummy.rpc_id(1, multiplayer.get_unique_id()) 
@@ -665,4 +670,5 @@ func _on_ping_timer_timeout() -> void:
 @rpc("any_peer", "reliable")
 func keep_alive_dummy(pid) -> void:
 	if pid in players_data:
-		print("[%s] PING" % players_data[pid]['name'])
+		print("[%s] %d" % [players_data[pid]['name'], pid])
+	
