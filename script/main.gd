@@ -31,12 +31,11 @@ enum {
 var state := JOIN
 
 var players_data: Dictionary = {}  # {player_id: {'place': int, 'name':str, 'request_result':int, 'alive': bool 'ready': bool, 'balance': int, 'request': int, 'vote': {player_id: int}}}
-var offline_players := {};
 var game_data: Dictionary = {'init_budget': 0, 'voting': {}, 'vote_winner': {}}
 var ava_id_shift := randi() % 9
 var ava_id_step:int = [1, 2, 4, 5, 7, 8].pick_random()
 var player_codes = {}
-
+var gost_code = "-6767"
 const PORT: int = 8080
 var SERVER_URL: String
 
@@ -68,12 +67,11 @@ func _ready() -> void:
 	voting_container.change_decition.connect(_on_change_voting)
 	input_field.text_submitted.connect(_on_text_submitted)
 	state = JOIN
-	
 	if OS.has_feature("dedicated_server") or "--server" in OS.get_cmdline_args():
 		start_server()
 	else:
 		start_client()
-	
+
 func start_server() -> void:
 	var err: Error = peer.create_server(PORT)
 	if err != OK:
@@ -104,7 +102,6 @@ func _on_player_connected(pid: int) -> void:
 
 func _on_player_disconnected(id: int) -> void:
 	if id in players_data:
-		offline_players[players_data[id]['peer_addres']] = players_data[id]
 		players_data.erase(id)  
 	print("Отключился ID " + str(id))
 
@@ -117,11 +114,8 @@ func _on_connected_to_server() -> void:
 func _server_restore_screen(pid: int):
 	if !multiplayer.is_server():
 		return
-	var peer_addres = multiplayer.multiplayer_peer.get_peer_address(pid)
-	if peer_addres in offline_players:
-		players_data[pid] = offline_players[peer_addres]
+	if pid in players_data:
 		players_data[pid]['ready'] = true
-		offline_players.erase(peer_addres)
 
 func _on_connection_failed() -> void:
 	message_label.text = "Сервер недоступен"
@@ -133,21 +127,20 @@ func _server_create_new_player(id: int, code_text: String):
 	if code_text in player_codes:
 		if player_codes[code_text]['not_used']:
 			var ava_id = (ava_id_shift + ava_id_step*get_alive_count()) % 9
-			var peer_addres = multiplayer.multiplayer_peer.get_peer_address(id)
-			players_data[id] = {'peer_addres': peer_addres, 'alive': true, 'ready': false, 'name': player_codes[code_text]['name'], 'ava_id': ava_id, 'balance': 0, 'request': 0, 'request_result':0, 'vote': {}, 'place': 0}
+			players_data[id] = {'alive': true, 'ready': false, 'name': player_codes[code_text]['name'], 'ava_id': ava_id, 'balance': 0, 'request': 0, 'request_result':0, 'vote': {}, 'place': 0}
 		else:
 			var update_date = {
 				"message_label" : "Этот код уже использован"
 			}
 			_client_change_screen_data.rpc_id(id, update_date)
-	elif code_text == "g":
-		players_data[id] = {'peer_addres': '', 'alive': false, 'ready': false, 'name': 'gost', 'ava_id': 0, 'balance': 0, 'request': 0, 'request_result':0, 'vote': {}, 'place': 0}
+	elif code_text == str(gost_code):
+		players_data[id] = {'alive': false, 'ready': false, 'name': 'gost', 'ava_id': 0, 'balance': 0, 'request': 0, 'request_result':0, 'vote': {}, 'place': 0}
 	else:
 		var update_date = {
 			"message_label" : "Неправильный код"
 		}
 		_client_change_screen_data.rpc_id(id, update_date)
-		
+
 func get_player_screen_data() -> Dictionary:
 	var res = {
 		"h_slider_value": h_slider.value,
@@ -175,7 +168,7 @@ func _server_update_game(pid: int, player_screen_data: Dictionary) -> void:
 		return
 	if pid not in players_data:
 		push_warning("[_server_update_game] pid not in players_data")
-		push_warning("[_server_update_game] %s" % str(players_data))
+		push_warning("[_server_update_game] %d" % pid)
 		return
 	if players_data[pid]['ready']: 
 		push_warning("[_server_update_game] already ready")
