@@ -132,7 +132,7 @@ func _server_create_new_player(id: int, code_text: String):
 		return
 	if code_text in player_codes:
 		if player_codes[code_text]['not_used']:
-			var ava_id = (ava_id_shift + ava_id_step*players_data.size()) % 9
+			var ava_id = (ava_id_shift + ava_id_step*get_alive_count()) % 9
 			var peer_addres = multiplayer.multiplayer_peer.get_peer_address(id)
 			players_data[id] = {'peer_addres': peer_addres, 'alive': true, 'ready': false, 'name': player_codes[code_text]['name'], 'ava_id': ava_id, 'balance': 0, 'request': 0, 'request_result':0, 'vote': {}, 'place': 0}
 		else:
@@ -140,9 +140,11 @@ func _server_create_new_player(id: int, code_text: String):
 				"message_label" : "Этот код уже использован"
 			}
 			_client_change_screen_data.rpc_id(id, update_date)
+	elif code_text == "g":
+		players_data[id] = {'peer_addres': '', 'alive': false, 'ready': false, 'name': 'gost', 'ava_id': 0, 'balance': 0, 'request': 0, 'request_result':0, 'vote': {}, 'place': 0}
 	else:
 		var update_date = {
-				"message_label" : "Неправильный код"
+			"message_label" : "Неправильный код"
 		}
 		_client_change_screen_data.rpc_id(id, update_date)
 		
@@ -178,6 +180,7 @@ func _server_update_game(pid: int, player_screen_data: Dictionary) -> void:
 	if players_data[pid]['ready']: 
 		push_warning("[_server_update_game] already ready")
 		return
+	_client_update_submit_screen.rpc_id(pid, players_data[pid])
 	if !players_data[pid]['alive']:
 		push_warning("[_server_update_game] player died")
 		return
@@ -190,7 +193,6 @@ func _server_update_game(pid: int, player_screen_data: Dictionary) -> void:
 			_server_update_game_on_voting(pid, player_screen_data)
 		_:
 			push_warning("[update_game] Uknown state: %s" % state)
-	_client_update_submit_screen.rpc_id(pid, players_data[pid])
 	
 @rpc("any_peer", "call_remote", "reliable")
 func _client_update_submit_screen(player_data):
@@ -226,13 +228,14 @@ func _server_update_game_on_join(pid: int, _player_data: Dictionary) -> void:
 	# Обновление данных экрана игроков
 	var ready_alive_players := get_alive_ready_count()
 	var update_date = {
-		'label_state': "К игре готовы: %d / %d" % [ready_alive_players, start_player_count],
+		'label_state': "К игре готовы: %d / %d
+		" % [ready_alive_players, start_player_count],
 		'new_accs': get_accs_list(),
 	}
 	_server_update_alive_client_screen_data(update_date)
 
 	# Проверка готовности к игре
-	if check_all_alive_ready() and players_data.size() == start_player_count:
+	if check_all_alive_ready() and ready_alive_players == start_player_count:
 		_server_set_state_aside(REQUESTING)
 
 func _client_update_submit_screen_on_join(player_data: Dictionary):
