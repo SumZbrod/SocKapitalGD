@@ -27,6 +27,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_itxqv")
 start_player_count = 2
+player_cost = null
 
 [node name="UpperBlock" type="VBoxContainer" parent="."]
 z_index = 1
@@ -81,6 +82,7 @@ visible = false
 custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
 value = 100.0
+scrollable = false
 
 [node name="MessageLabel" type="Label" parent="VBox"]
 layout_mode = 2
