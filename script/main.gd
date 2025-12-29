@@ -666,5 +666,5 @@ func _on_ping_timer_timeout() -> void:
 @rpc("any_peer", "reliable")
 func keep_alive_dummy(pid) -> void:
 	if pid in players_data:
-		print("[%s] %d" % [players_data[pid]['name'], pid])
+		print("[%s]\t%d" % [players_data[pid]['name'], pid])
 	
