@@ -40,14 +40,8 @@ const PORT = 8080
 var SERVER_URL: String
 
 var clock := .0
-const wait_time := 5 * 1
+const wait_time := 5 * 1 #TODO
 
-func _process(delta):
-	if peer:
-		peer.poll()
-	if clock > 0:
-		clock = max(0, clock-delta)
-		update_clock()
 
 func _ready() -> void:
 	if OS.has_feature("web"):
@@ -78,6 +72,13 @@ func _ready() -> void:
 	else:
 		start_client()
 
+func _process(delta):
+	if peer:
+		peer.poll()
+	if clock > 0:
+		clock = max(0, clock-delta)
+		update_clock()
+		
 func time_convert(time_in_sec):
 	time_in_sec = int(time_in_sec)
 	var seconds = time_in_sec%60
