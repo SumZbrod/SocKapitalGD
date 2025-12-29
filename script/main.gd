@@ -40,7 +40,7 @@ const PORT = 8080
 var SERVER_URL: String
 
 var clock := .0
-const wait_time := 5 * 60
+const wait_time := 5 * 1
 
 func _process(delta):
 	if peer:
@@ -89,7 +89,7 @@ func update_clock():
 		label_clock.text = time_convert(clock)
 	else:
 		label_clock.text = ''
-		_on_next_button_pressed()
+		_client_send_my_data()
 
 func start_server() -> void:
 	var err: Error = peer.create_server(PORT)
@@ -168,9 +168,13 @@ func get_player_screen_data() -> Dictionary:
 	}
 	return res
 
-func _on_next_button_pressed() -> void:
+func _client_send_my_data() -> void:
 	var player_data := get_player_screen_data()
 	_server_update_game.rpc_id(1, multiplayer.get_unique_id(), player_data)
+
+func _on_next_button_pressed() -> void:
+	clock = 0
+	update_clock()
 	
 func _on_text_submitted(text: String) -> void:
 	if text.strip_edges().is_empty():
@@ -338,6 +342,11 @@ func _client_change_screen_properties() -> void:
 			voting_container.visible = true
 			h_slider.visible = false
 			next_button.visible = false
+		GAMEEND:
+			next_button.disabled = true
+			next_button.visible = false
+			voting_container.visible = true
+			h_slider.visible = false
 		_:
 			push_warning("[change_screen_properties] Uknown state: %s" % state)
 
