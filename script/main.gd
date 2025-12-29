@@ -13,7 +13,7 @@ extends Control
 @onready var account: VBoxContainer = $Account
 @onready var history_log: TextEdit = $HistoryLog
 @onready var ping_timer: Timer = $PingTimer
-
+@onready var label_clock: Label = $UpperBlock/LabelClock
 @onready var label_state: Label = $UpperBlock/LabelState
 @onready var voting_container: VotingContainerClass = $UpperBlock/VotingContainer
 @onready var state_timer: Timer = $StateTimer
@@ -36,12 +36,12 @@ var ava_id_shift := randi() % 9
 var ava_id_step:int = [1, 2, 4, 5, 7, 8].pick_random()
 var player_codes = {}
 var gost_code = "-6767"
-const PORT: int = 8080
+const PORT = 8080
 var SERVER_URL: String
 
-func _process(_delta):
-	if peer:
-		peer.poll()
+var clock := .0
+const wait_time := 5 * 1 #TODO
+
 
 func _ready() -> void:
 	if OS.has_feature("web"):
@@ -71,6 +71,26 @@ func _ready() -> void:
 		start_server()
 	else:
 		start_client()
+
+func _process(delta):
+	if peer:
+		peer.poll()
+	if clock > 0:
+		clock = max(0, clock-delta)
+		update_clock()
+		
+func time_convert(time_in_sec):
+	time_in_sec = int(time_in_sec)
+	var seconds = time_in_sec%60
+	var minutes = (time_in_sec/60)%60
+	return "%02d:%02d" % [minutes, seconds]
+
+func update_clock():
+	if clock > 0:
+		label_clock.text = time_convert(clock)
+	else:
+		label_clock.text = ''
+		_client_send_my_data()
 
 func start_server() -> void:
 	var err: Error = peer.create_server(PORT)
@@ -149,9 +169,13 @@ func get_player_screen_data() -> Dictionary:
 	}
 	return res
 
-func _on_next_button_pressed() -> void:
+func _client_send_my_data() -> void:
 	var player_data := get_player_screen_data()
 	_server_update_game.rpc_id(1, multiplayer.get_unique_id(), player_data)
+
+func _on_next_button_pressed() -> void:
+	clock = 0
+	update_clock()
 	
 func _on_text_submitted(text: String) -> void:
 	if text.strip_edges().is_empty():
@@ -299,6 +323,7 @@ func _client_change_screen_properties() -> void:
 			next_button.visible = false
 			account.visible = false
 		REQUESTING:
+			clock = wait_time
 			next_button.disabled = false
 			account.visible = true
 			next_button.visible = true
@@ -306,6 +331,7 @@ func _client_change_screen_properties() -> void:
 			input_field.visible = false
 			voting_container.visible = false
 		VOTING:
+			clock = wait_time
 			next_button.disabled = false
 			next_button.visible = true
 			voting_container.visible = true
@@ -317,6 +343,11 @@ func _client_change_screen_properties() -> void:
 			voting_container.visible = true
 			h_slider.visible = false
 			next_button.visible = false
+		GAMEEND:
+			next_button.disabled = true
+			next_button.visible = false
+			voting_container.visible = true
+			h_slider.visible = false
 		_:
 			push_warning("[change_screen_properties] Uknown state: %s" % state)
 
@@ -666,5 +697,5 @@ func _on_ping_timer_timeout() -> void:
 @rpc("any_peer", "reliable")
 func keep_alive_dummy(pid) -> void:
 	if pid in players_data:
-		print("[%s] %d" % [players_data[pid]['name'], pid])
+		print("[%s]\t%d" % [players_data[pid]['name'], pid])
 	
