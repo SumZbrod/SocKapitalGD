@@ -1,7 +1,5 @@
 extends Control
-
 @export var start_player_count := 5
-@export var player_cost := 100
 @onready var message_label: Label = $VBox/MessageLabel
 @onready var input_field: LineEdit = $VBox/InputField
 @onready var next_button: Button = $VBox/NextButton
@@ -18,7 +16,6 @@ extends Control
 @onready var voting_container: VotingContainerClass = $UpperBlock/VotingContainer
 @onready var state_timer: Timer = $StateTimer
 var new_state
-var game_history := ''
 var peer := WebSocketMultiplayerPeer.new()
 
 enum {
@@ -31,7 +28,6 @@ enum {
 var state := JOIN
 
 var player_list := PlayerListClass.new()
-var game_data: Dictionary = {'init_budget': 0, 'voting': {}, 'vote_winner': {}}
 var ava_id_shift := randi() % 9
 var ava_id_step:int = [1, 2, 4, 5, 7, 8].pick_random()
 var player_codes = {}
@@ -144,7 +140,7 @@ func _server_create_new_player(pid: int, code_text: String):
 		return
 	if code_text in player_codes:
 		if player_codes[code_text]['not_used']:
-			var ava_id = (ava_id_shift + ava_id_step*get_alive_count()) % 9
+			var ava_id = (ava_id_shift + ava_id_step*player_list.get_alive_count()) % 9
 			player_list.make_player(pid, player_codes[code_text]['name'], ava_id)
 		else:
 			var update_date = {
@@ -249,7 +245,7 @@ func _server_update_game_on_join(pid: int, _player_data: Dictionary) -> void:
 	_server_update_alive_client_screen_data(update_date)
 
 	# Проверка готовности к игре
-	if check_all_alive_ready() and ready_alive_players == start_player_count:
+	if player_list.check_all_alive_ready() and ready_alive_players == start_player_count:
 		_server_set_state_aside(REQUESTING)
 
 func _client_update_submit_screen_on_join(player_data: Dictionary):
@@ -365,7 +361,7 @@ func _server_change_state():
 	player_list.set_ready(-1, false)
 	match state:
 		REQUESTING:
-			_server_set_requesting_state(alive_count)
+			_server_set_requesting_state()
 		VOTING:
 			_server_set_voting_state()
 		ELIMINATING:
@@ -386,26 +382,16 @@ func _client_update_player_state(_state):
 		state = _state
 		_client_change_screen_properties()
 
-func reset_game_data():
-	game_data = {'init_budget': 0, 'voting': {}, "vote_winner": {}}
-
 ## Подготавливает информацию обигроках к началу нового раунда
 ## Отправляет новые данные об экранах универсальную игроков
-func _server_set_requesting_state(alive_count: int):
+func _server_set_requesting_state():
 	player_list.reset_request_vote()
-	reset_game_data()
+	player_list.reset_game_data()
+	player_list.set_init_budget()
 	
-	var budget := alive_count * player_cost
-	game_data['init_budget'] = budget
-	var init_screen_data = {
-		'label_state': "Бюджет: %d" % budget,
-		'h_slider_max': budget,
-		'h_slider_value': player_cost,
-		'next_button': "Запросить",
-		'slider_editable': true,
-		'message_label': "Ваш запрос: %d" % player_cost,
-	}
-	_server_update_alive_client_screen_data(init_screen_data)
+	for pid in player_list.get_alive_pids():
+		var init_screen_data = player_list.get_state_screen_data(pid, "set_request")
+		_client_change_screen_data.rpc_id(pid, init_screen_data)
 
 ## Добавляет информацию об запросе игрока на получение баллов
 func _server_update_game_on_requesting(pid: int, player_data: Dictionary):
@@ -413,7 +399,7 @@ func _server_update_game_on_requesting(pid: int, player_data: Dictionary):
 	player_list.set_request(pid, player_data["h_slider_value"])
 
 	if player_list.check_all_alive_ready():
-		calc_request_result()
+		player_list.calc_request_result()
 		_server_set_state_aside(VOTING)
 
 func _client_update_submit_screen_on_requesting(player_data):
@@ -434,49 +420,23 @@ func _on_h_slider_value_changed(value: float) -> void:
 			_on_change_voting(voting_container.get_choose())
 	_client_change_screen_data(update_date)
 
-func calc_request_result():
-	var init_budget = game_data['init_budget']
-	var inequality_degree := .5 + 2*randf()
-	var sum_request := player_list.get_request(-1)
-	
-	var shrink_budget = min(init_budget, 2*init_budget - sum_request)
-	shrink_budget = max(player_cost, abs(shrink_budget)) * (1 if shrink_budget > 0 else -1)
-	player_list.set_request_result(shrink_budget, init_budget, inequality_degree)
-	if shrink_budget <= 0:
-		var max_minus := player_list.get_abs_max_minus()
-		game_history += "субсидия равна: %d\n" % max_minus
-
 func _server_set_voting_state():
 	for pid in player_list.get_alive_pids():
-		var new_player_date = {
-			"my_result":  "Запросили: %d\nПолучили: %d" % [player_list.get_request(pid), player_list.get_balance(pid)], 
-			"label_state": "Выберите за кого голосовать",
-			"my_score": str(player_list.get_balance(pid)),
-			"next_button": "Пропустить\nголосование",
-			"slider_editable": true,
-			"h_slider_max": player_list.get_max_voting_value(pid),
-			"h_slider_value": 0,
-			"voting_vars": player_list.get_voiting_vars_for(pid),
-		} 
+		var new_player_date = player_list.get_state_screen_data(pid, "set_voting")
 		player_list.reset_request_vote()
 		_client_change_screen_data.rpc_id(pid, new_player_date)
-	game_data["voting"] = {}
-	game_data["vote_winner"] = {}
-	
+	player_list.reset_game_data()
+
 func _server_update_game_on_voting(pid: int, player_data: Dictionary) -> void:
 	var vote_pid = player_data['vote_pid'] 
 	var vote_value = player_data["h_slider_value"]
 	if vote_pid > 0 and vote_value > 0:
 		player_list.set_vote(pid, vote_pid, vote_value)
-		if vote_pid in game_data["voting"]:
-			game_data["voting"][vote_pid] += vote_value 
-		else:
-			game_data["voting"][vote_pid] = vote_value 
 	else:
 		player_list.reset_vote(pid)
 	player_list.set_ready(pid, true)
 	if player_list.check_all_alive_ready():
-		calc_voting_result()
+		player_list.calc_voting_result()
 		_server_set_state_aside(ELIMINATING)
 		
 func _client_update_submit_screen_on_voting(player_data):
@@ -496,49 +456,15 @@ func _on_change_voting(pid:int):
 	else:
 		next_button.text = "Пропустить\nголосование"
 
-func calc_voting_result():
-	var max_vote := 0
-	var max_pid := 0
-	var selected_pid := []
-	for pid in game_data['voting']:
-		if max_vote < game_data['voting'][pid]:
-			max_pid = pid
-			max_vote = game_data['voting'][pid]
-	
-	if max_pid > 0:
-		for pid in players_data:
-			if pid not in game_data['voting']:
-				continue
-			if players_data[pid]['alive'] and game_data['voting'][pid] >= max_vote:
-				selected_pid.append(pid)
-	else:
-		var max_balance := 0
-		if max_pid <= 0:
-			for pid in players_data:
-				if players_data[pid]['alive'] and players_data[pid]['balance'] > max_balance:
-					max_balance = players_data[pid]['balance']
-					max_pid = pid
-			if max_pid:
-				selected_pid = [max_pid]
-	game_data['vote_winner'] = []
-	for pid in selected_pid:
-		var winner := {
-			'pid': pid,
-			'balance': players_data[pid]['balance'],
-			'name': players_data[pid]['name'],
-		}
-		game_data['vote_winner'].append(winner)
-		
 func _server_set_eliminating_state():
-	if game_data['vote_winner']:
+	if player_list.vote_winner:
 		var label_state_str := "" 
 		var message_label_str := "" 
 		var voting_vars_array := []
-		var alive_count = get_alive_count() 
-		for acc_data in game_data['vote_winner']:
+		var alive_count = player_list.get_alive_count() 
+		for acc_data in player_list.vote_winner:
 			var pid = acc_data['pid']
-			players_data[pid]['alive'] = false
-			players_data[pid]['place'] = alive_count
+			player_list.kill(pid, alive_count)
 			_client_make_gameover.rpc_id(pid)
 			voting_vars_array.append(pid)
 			label_state_str += "Игру покидает: %s\n" % acc_data['name']
@@ -553,7 +479,7 @@ func _server_set_eliminating_state():
 		_server_set_state_aside(REQUESTING)
 	else:
 		push_warning("vote winner didn't calc")
-		calc_voting_result()
+		player_list.calc_voting_result(true)
 
 @rpc("any_peer", "call_remote", "reliable")
 func _client_make_gameover() -> void:
@@ -567,24 +493,17 @@ func _client_make_gameover() -> void:
 	voting_container.visible = true
 
 func send_dead_log():
-	var log_message := '~~~~~~~~~~~~~~~~{0}~~~~~~~~~~~~~~~\n'.format([get_alive_count()])
-	var alive_acc = []
-	for pid in players_data:
-		if players_data[pid]['alive']:
-			alive_acc.append(pid)
-			var pid_data = players_data[pid] 
-			if state == REQUESTING:
-				log_message += "{0} запросил {1} получил {2} баланс равен {3}\n".format([pid_data['name'], int(pid_data['request']), int(pid_data['request_result']), int(pid_data['balance'])])
-			if state == VOTING:
-				log_message += "{0} проголосовал {1}\n".format([pid_data['name'], str(pid_data['vote'])])
-	game_history += log_message
+	var log_message := '~~~~~~~~~~~~~~~~{0}~~~~~~~~~~~~~~~\n'.format([player_list.get_alive_count()])
+	var alive_acc = player_list.get_alive_pids()
+	for pid in alive_acc:
+		log_message += player_list.get_state_log(pid, state)
+	player_list.game_history += log_message
 	var update_date = {
-		'history_log': game_history,
+		'history_log': player_list.game_history,
 		"voting_vars": alive_acc,
 	}
-	for pid in players_data:
-		if !players_data[pid]['alive']:
-			_client_change_screen_data.rpc_id(pid, update_date)
+	for pid in player_list.get_dead_pids():
+		_client_change_screen_data.rpc_id(pid, update_date)
 
 func _server_set_state_aside(state_):
 	if state_ != state:
@@ -597,29 +516,25 @@ func _on_state_timer_timeout() -> void:
 	_server_change_state()
 
 func _server_set_gameend_state() -> void:
-	var win_pid: int 
-	var last_message = ''
-	for pid in players_data:
-		if players_data[pid]['alive']:
-			win_pid = pid
-			players_data[pid]['place'] = 1
-			
-	for i in range(1, 1+start_player_count):
-		for pid in players_data:
-			if players_data[pid]['place'] == i:
-				last_message += "#%d: %s\n" % [i, players_data[pid]['name']]
-			
+	var win_pids := [] 
+	var win_message = ""
+	for pid in player_list.get_alive_pids():
+		win_pids.append(pid)
+		player_list.set_place(pid, 1)
+		win_message += "Выиграл %s: %d\n" % [player_list.get_player_name(pid), player_list.get_player_balance(pid)]
+	var last_message = player_list.get_last_message()
+	
 	var update_data = {
 		'message_label': last_message,
 		'clear_selaction': true,
-		'history_log': game_history,
+		'history_log': player_list.game_history,
 	}
-	if !win_pid:
+	if !win_pids:
 		update_data['label_state'] = "Все проиграли"
 		update_data['voting_vars'] = []
 	else:
-		update_data['label_state'] = "Выиграл %s: %d" % [players_data[win_pid]['name'], players_data[win_pid]['balance']]
-		update_data['voting_vars'] = [win_pid]
+		update_data['label_state'] = win_message
+		update_data['voting_vars'] = win_pids
 		
 	_server_update_all_client_screen_data(update_data)
 	
@@ -636,6 +551,6 @@ func _on_ping_timer_timeout() -> void:
 
 @rpc("any_peer", "reliable")
 func keep_alive_dummy(pid) -> void:
-	if pid in players_data:
-		print("[%s]\t%d" % [players_data[pid]['name'], pid])
+	if pid in player_list.is_exist(pid):
+		print("[%s]\t%d" % [player_list.get_player_name(pid), pid])
 	
