@@ -40,7 +40,7 @@ const PORT = 8080
 var SERVER_URL: String
 
 var clock := .0
-const wait_time := 5 * 5 #TODO
+const wait_time := 5 * 60 #TODO
 
 func _ready() -> void:
 	if OS.has_feature("web"):
@@ -85,6 +85,8 @@ func time_convert(time_in_sec):
 	return "%02d:%02d" % [minutes, seconds]
 
 func update_clock():
+	if multiplayer.is_server():
+		return
 	if clock > 0:
 		label_clock.text = time_convert(clock)
 	else:
