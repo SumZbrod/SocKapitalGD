@@ -203,7 +203,6 @@ func _server_update_game(pid: int, player_screen_data: Dictionary) -> void:
 	
 @rpc("any_peer", "call_remote", "reliable")
 func _client_sync_player(player_dict: Dictionary):
-	print("\tsync player ", player_dict)
 	if my_player_account:
 		my_player_account.sync(player_dict)
 	else:
