@@ -1,4 +1,4 @@
-class_name PlayerListClass extends Node
+class_name PlayerListClass
 
 var player_dict := {}
 var voting_dict := {}
@@ -7,6 +7,8 @@ var init_budget := 0
 const PLAYER_COST = 100
 var game_history := ""
 var start_player_count: int
+var ava_id_shift := randi() % 9
+var ava_id_step:int = [1, 2, 4, 5, 7, 8].pick_random()
 
 enum {
 	JOIN,
@@ -16,11 +18,18 @@ enum {
 	GAMEEND,
 }
 
-func make_player(pid, player_name, ava_id) -> void:
-	var new_player = PlayerClass.new(player_name, ava_id)
+func from_dict(data) -> PlayerClass:
+	var new_player = PlayerClass.new(data['pid'], data['player_name'], data['ava_id'])
+	new_player.sync(data)
+	return new_player
+	
+func make_player(pid, player_name) -> void:
+	var ava_id = (ava_id_shift + ava_id_step*get_alive_count()) % 9
+	var new_player = PlayerClass.new(pid, player_name, ava_id)
+	print(new_player)
 	start_player_count += 1
 	player_dict[pid] = new_player
-
+	
 func kill(pid: int, place:=-1) -> void:
 	player_dict[pid].kill()
 	if place == -1:
@@ -29,7 +38,7 @@ func kill(pid: int, place:=-1) -> void:
 		player_dict[pid].place = place
 
 func make_gost(pid) -> void:
-	var new_player = PlayerClass.new('Gost', 0)
+	var new_player = PlayerClass.new(pid, 'Gost', 0)
 	new_player.kill()
 	player_dict[pid] = new_player
 
@@ -43,17 +52,18 @@ func erase(pid: int) -> void:
 		push_warning("[playerplayer_dict:erase] pid didn't exist: %d" % pid)
 		
 func get_player(pid: int) -> PlayerClass:
-	return player_dict[pid]
+	return player_dict[pid] as PlayerClass
 
 ## if pid == -1, value will be set to everyone
 func set_ready(pid:int, value: bool) -> void:
+	print('set_ready ', str(self))
 	if pid == -1:
 		for sub_pid in player_dict:
 			player_dict[sub_pid].ready_state = value
 	elif is_exist(pid):
 		player_dict[pid].ready_state = value
 	else:
-		push_warning("[playerplayer_dict:set_ready] pid didn't exist: %d" % pid)
+		push_warning("[player_dict:set_ready] pid didn't exist: %d" % pid)
 		
 func is_ready(pid: int) -> bool:
 	return player_dict[pid].ready_state
@@ -182,7 +192,7 @@ func get_voiting_vars_for(pid:int) -> Array:
 	for sub_pid in player_dict:
 		if sub_pid == pid:
 			continue 
-		if !player_dict.alive:
+		if !player_dict[pid].alive:
 			continue
 		voting_vars.append(sub_pid)
 	return voting_vars
@@ -210,9 +220,7 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 			}
 		"set_voting":
 			data = {
-				"my_result":  "Запросили: %d\nПолучили: %d" % [get_request(pid), get_balance(pid)], 
 				"label_state": "Выберите за кого голосовать",
-				"my_score": str(get_balance(pid)),
 				"next_button": "Пропустить\nголосование",
 				"slider_editable": true,
 				"h_slider_max": get_max_voting_value(pid),
@@ -265,13 +273,16 @@ func calc_voting_result(exaption_enable=false):
 	if exaption_enable and vote_winner:
 		push_error("I can't make vote winner")
 
-func get_request_log(pid: int, state) -> String:
+func get_state_log(pid: int, state) -> String:
 	var pid_data = player_dict[pid]
 	var res = ""
 	match state:
 		REQUESTING:
 			pid_data = [pid_data.player_name, pid_data.request, pid_data.request_result, pid_data.balance]
 			res += "{0} запросил {1} получил {2} баланс равен {3}\n".format(pid_data)
+		VOTING:
+			pid_data = [pid_data.player_name, str(pid_data.vote)]
+			res += "{0} проголосовал {1}".format(pid_data)
 	return res
 
 func set_place(pid:int, place:int):
@@ -282,60 +293,22 @@ func get_last_message() -> String:
 	for i in range(1, 1+start_player_count):
 		for pid in player_dict:
 			if player_dict[pid].place == i:
-				last_message += "#%d: %s\n" % [i, player_dict[pid].name]
+				last_message += "#%d: %s\n" % [i, player_dict[pid].player_name]
 	return last_message
 
+func get_accs_list():
+	var new_accs = []
+	for pid in player_dict:
+		var new_acc = {
+			'pid' = pid,
+			'ava_id' = player_dict[pid].ava_id,
+			'name' = player_dict[pid].player_name,
+		}
+		new_accs.append(new_acc)
+	return new_accs
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#
+func _to_string():
+	return str(player_dict.keys())
+	
+func get_dict(pid:int) -> Dictionary:
+	return player_dict[pid].to_dict()

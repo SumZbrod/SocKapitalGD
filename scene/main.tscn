@@ -1,11 +1,10 @@
-[gd_scene load_steps=9 format=3 uid="uid://cpwdrknl4gdqk"]
+[gd_scene load_steps=8 format=3 uid="uid://cpwdrknl4gdqk"]
 
 [ext_resource type="Script" uid="uid://bp8uosc2eot8g" path="res://script/main.gd" id="1_itxqv"]
-[ext_resource type="Texture2D" uid="uid://dadgywhnpctu5" path="res://assets/img/avas.png" id="2_v0l8b"]
 [ext_resource type="PackedScene" uid="uid://blr8ogvrdpsy8" path="res://scene/voting_container.tscn" id="2_wp4xf"]
-[ext_resource type="Material" uid="uid://2x3k2shhnrnq" path="res://shader/shaking.tres" id="3_4j5ol"]
 [ext_resource type="Shader" uid="uid://dscihv7iayhrv" path="res://shader/show.gdshader" id="4_0ha60"]
 [ext_resource type="Texture2D" uid="uid://cvutlcds7ttye" path="res://assets/img/wallpaper.webp" id="4_brvut"]
+[ext_resource type="PackedScene" uid="uid://bcmreqckndjor" path="res://scene/account.tscn" id="5_4j5ol"]
 [ext_resource type="Texture2D" uid="uid://db4uqjuthofgp" path="res://assets/img/icon.png" id="7_p1hux"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_4j5ol"]
@@ -58,7 +57,6 @@ size_flags_horizontal = 4
 [node name="SpawnRoot" type="Node" parent="."]
 
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
-_spawnable_scenes = PackedStringArray("uid://bcmreqckndjor")
 spawn_path = NodePath("../SpawnRoot")
 spawn_limit = 5
 
@@ -98,48 +96,8 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 49
 text = "Присоединиться"
 
-[node name="Account" type="VBoxContainer" parent="."]
-visible = false
-custom_minimum_size = Vector2(128, 128)
-layout_mode = 1
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -151.61984
-offset_top = -251.89258
-offset_right = -23.619873
-offset_bottom = -24.892578
-grow_horizontal = 0
-grow_vertical = 0
-
-[node name="MyName" type="Label" parent="Account"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 23
-text = "Vladislav"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="MyAva" type="NinePatchRect" parent="Account"]
-material = ExtResource("3_4j5ol")
-custom_minimum_size = Vector2(128, 128)
-layout_mode = 2
-texture = ExtResource("2_v0l8b")
-region_rect = Rect2(682, 0, 341, 341)
-
-[node name="MyScore" type="Label" parent="Account"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 23
-text = "0"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="MyResult" type="Label" parent="Account"]
-layout_mode = 2
-
 [node name="StateTimer" type="Timer" parent="."]
-wait_time = 2.0
+wait_time = 0.5
 one_shot = true
 
 [node name="Wallpaper" type="NinePatchRect" parent="."]
@@ -156,6 +114,21 @@ patch_margin_left = 15
 patch_margin_top = 15
 patch_margin_right = 15
 patch_margin_bottom = 15
+
+[node name="Account" parent="." instance=ExtResource("5_4j5ol")]
+visible = false
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -150.0
+offset_top = -226.0
+offset_right = -22.0
+offset_bottom = 1.0
+grow_horizontal = 0
+grow_vertical = 0
 
 [node name="LOGO" type="NinePatchRect" parent="."]
 modulate = Color(1, 1, 0.7764706, 0.09803922)

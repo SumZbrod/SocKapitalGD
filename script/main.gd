@@ -4,19 +4,17 @@ extends Control
 @onready var input_field: LineEdit = $VBox/InputField
 @onready var next_button: Button = $VBox/NextButton
 @onready var h_slider: HSlider = $VBox/HSlider
-@onready var my_name: Label = $Account/MyName
-@onready var my_ava: NinePatchRect = $Account/MyAva
-@onready var my_score: Label = $Account/MyScore
-@onready var my_result: Label = $Account/MyResult
-@onready var account: VBoxContainer = $Account
+@onready var account: AccountNode = $Account
 @onready var history_log: TextEdit = $HistoryLog
 @onready var ping_timer: Timer = $PingTimer
 @onready var label_clock: Label = $UpperBlock/LabelClock
 @onready var label_state: Label = $UpperBlock/LabelState
-@onready var voting_container: VotingContainerClass = $UpperBlock/VotingContainer
+@onready var voting_container: VotingContainerNode = $UpperBlock/VotingContainer
 @onready var state_timer: Timer = $StateTimer
 var new_state
 var peer := WebSocketMultiplayerPeer.new()
+const account_scn = preload("res://scene/account.tscn")
+var my_player_account: PlayerClass
 
 enum {
 	JOIN,
@@ -28,16 +26,13 @@ enum {
 var state := JOIN
 
 var player_list := PlayerListClass.new()
-var ava_id_shift := randi() % 9
-var ava_id_step:int = [1, 2, 4, 5, 7, 8].pick_random()
 var player_codes = {}
 var gost_code = "-6767"
 const PORT = 8080
 var SERVER_URL: String
 
 var clock := .0
-const wait_time := 5 * 1 #TODO
-
+const wait_time := 5 * 60 #TODO
 
 func _ready() -> void:
 	if OS.has_feature("web"):
@@ -58,7 +53,7 @@ func _ready() -> void:
 	if !player_codes:
 		var names = "ABCDEXYZW".split()
 		for i in range(start_player_count):
-			player_codes[str(i)] = {'name': names[i], 'not_used': true}
+			player_codes[str(i+1)] = {'name': names[i], 'not_used': true}
 	start_player_count = player_codes.size()
 	voting_container.change_decition.connect(_on_change_voting)
 	input_field.text_submitted.connect(_on_text_submitted)
@@ -129,7 +124,8 @@ func _on_connected_to_server() -> void:
 func _server_restore_screen(pid: int):
 	if !multiplayer.is_server():
 		return
-	player_list.set_ready(pid, true)
+	if player_list.is_exist(pid):
+		player_list.set_ready(pid, true)
 
 func _on_connection_failed() -> void:
 	message_label.text = "Сервер недоступен"
@@ -140,8 +136,8 @@ func _server_create_new_player(pid: int, code_text: String):
 		return
 	if code_text in player_codes:
 		if player_codes[code_text]['not_used']:
-			var ava_id = (ava_id_shift + ava_id_step*player_list.get_alive_count()) % 9
-			player_list.make_player(pid, player_codes[code_text]['name'], ava_id)
+			print("Player created: %d" % pid)
+			player_list.make_player(pid, player_codes[code_text]['name'])
 		else:
 			var update_date = {
 				"message_label" : "Этот код уже использован"
@@ -191,7 +187,8 @@ func _server_update_game(pid: int, player_screen_data: Dictionary) -> void:
 	if player_list.is_ready(pid): 
 		push_warning("[_server_update_game] already ready")
 		return
-	_client_update_submit_screen.rpc_id(pid, player_list.get_player(pid))
+	_client_sync_player.rpc_id(pid, player_list.get_dict(pid))
+	_client_update_submit_screen.rpc_id(pid)
 	if !player_list.is_alive(pid):
 		push_warning("[_server_update_game] player died")
 		return
@@ -204,35 +201,33 @@ func _server_update_game(pid: int, player_screen_data: Dictionary) -> void:
 			_server_update_game_on_voting(pid, player_screen_data)
 		_:
 			push_warning("[update_game] Uknown state: %s" % state)
-	
+
 @rpc("any_peer", "call_remote", "reliable")
-func _client_update_submit_screen(player_data):
+func _client_sync_player(player_dict: Dictionary):
+	if my_player_account:
+		my_player_account.sync(player_dict)
+		account.update(my_player_account.get_acc_info(state))
+	else:
+		my_player_account = player_list.from_dict(player_dict)
+	
+		
+@rpc("any_peer", "call_remote", "reliable")
+func _client_update_submit_screen():
 	match state: 
 		JOIN:
-			_client_update_submit_screen_on_join(player_data)
+			_client_update_submit_screen_on_join()
 		REQUESTING:
-			_client_update_submit_screen_on_requesting(player_data)
+			_client_update_submit_screen_on_requesting()
 		VOTING:
-			_client_update_submit_screen_on_voting(player_data)
+			_client_update_submit_screen_on_voting()
 		_:
 			push_warning("[update_my_screen] Uknown state: %s" % state)
-
-func get_accs_list():
-	var new_accs = []
-	for sub_pid in player_list.get_list():
-		var new_acc = {
-			'pid' = sub_pid,
-			'ava_id' = player_list.get_ava_id(sub_pid),
-			'name' = player_list.get_player_name(sub_pid),
-		}
-		new_accs.append(new_acc)
-	return new_accs
 
 ## Вызывается после нажатия next_button или ввода имени
 ## Должен обновлять имя и обновлять VotingContaine
 ## Проверяет что игру можно начинать
 ## Не даёт повторного выполнения
-func _server_update_game_on_join(pid: int, _player_data: Dictionary) -> void:
+func _server_update_game_on_join(pid: int, _player_screen_data:Dictionary) -> void:
 	player_list.set_ready(pid, true)
 	
 	# Обновление данных экрана игроков
@@ -240,7 +235,7 @@ func _server_update_game_on_join(pid: int, _player_data: Dictionary) -> void:
 	var update_date = {
 		'label_state': "К игре готовы: %d / %d
 		" % [ready_alive_players, start_player_count],
-		'new_accs': get_accs_list(),
+		'new_accs': player_list.get_accs_list(),
 	}
 	_server_update_alive_client_screen_data(update_date)
 
@@ -248,39 +243,18 @@ func _server_update_game_on_join(pid: int, _player_data: Dictionary) -> void:
 	if player_list.check_all_alive_ready() and ready_alive_players == start_player_count:
 		_server_set_state_aside(REQUESTING)
 
-func _client_update_submit_screen_on_join(player_data: Dictionary):
+func _client_update_submit_screen_on_join():
 	input_field.editable = false
 	input_field.visible = false
 	next_button.visible = true
 	next_button.disabled = true
-	
-	var r = 341
-	var x = player_data['ava_id'] % 3
-	@warning_ignore("integer_division")
-	var y = player_data['ava_id'] / 3
-	var ava_rect = Rect2(r*x, r*y, r, r)
-		
-	var update_data = {
-		'next_button': "Готов",
-		"my_name": player_data['name'],
-		"my_ava": ava_rect,
-		"my_score": str(int(player_data['balance'])),
-	}
-	_client_change_screen_data(update_data)
+	account.setup(my_player_account)
 
 @rpc("any_peer", "call_remote", "reliable")
 ## Меняет информацию содержащиюся на экране
 func _client_change_screen_data(update_date: Dictionary) -> void:
 	for key in update_date:
 		match key:
-			"my_name":
-				my_name.text = update_date[key]
-			"my_score":
-				my_score.text = update_date[key]
-			"my_ava":
-				my_ava.region_rect = update_date[key]
-			"my_result":
-				my_result.text = update_date[key]
 			"label_state":
 				label_state.text = update_date[key]
 			"next_button":
@@ -402,10 +376,10 @@ func _server_update_game_on_requesting(pid: int, player_data: Dictionary):
 		player_list.calc_request_result()
 		_server_set_state_aside(VOTING)
 
-func _client_update_submit_screen_on_requesting(player_data):
+func _client_update_submit_screen_on_requesting():
 	var update_data = {
 		'slider_editable': false,
-		'next_button': "Ваш запрос: %d" % player_data['request'],
+		'next_button': "Ваш запрос: %d" % my_player_account.get_request(),
 		'next_button_disabled': true,
 	}
 	_client_change_screen_data(update_data)
@@ -439,12 +413,11 @@ func _server_update_game_on_voting(pid: int, player_data: Dictionary) -> void:
 		player_list.calc_voting_result()
 		_server_set_state_aside(ELIMINATING)
 		
-func _client_update_submit_screen_on_voting(player_data):
+func _client_update_submit_screen_on_voting():
 	var update_data = {
 		"next_button": "Вы проголосовали",
 		"next_button_disabled": true,
 		"slider_editable": false,
-		"my_score": str(int(player_data['balance'])),
 	}
 	_client_change_screen_data(update_data)
 
@@ -551,6 +524,6 @@ func _on_ping_timer_timeout() -> void:
 
 @rpc("any_peer", "reliable")
 func keep_alive_dummy(pid) -> void:
-	if pid in player_list.is_exist(pid):
+	if player_list.is_exist(pid):
 		print("[%s]\t%d" % [player_list.get_player_name(pid), pid])
 	

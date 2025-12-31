@@ -4,7 +4,7 @@ varying vec2 world_pos_xy;
 void vertex() {
 	world_pos_xy = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
 	vec2 local_pos = VERTEX;
-    local_pos.y += sin(TIME + world_pos_xy.x-local_pos.x*.75) * 5.;
+    local_pos.y += sin(TIME + world_pos_xy.x-local_pos.x*.5) * 5.;
     VERTEX = local_pos;
 }
 

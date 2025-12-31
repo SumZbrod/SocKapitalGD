@@ -1,13 +1,13 @@
-class_name VotingContainerClass extends HBoxContainer
+class_name VotingContainerNode extends HBoxContainer
 
-const player_account = preload("res://scene/player.tscn")
+const account_scn = preload("res://scene/account.tscn")
 var acc_chooses = []
 signal change_decition(pid:int)
 
-#func _ready() -> void:
+func _ready() -> void:
 	#__test()
-	#return
-	#
+	return
+
 func __test():
 	var new_accs = [
 		{"pid": 1, "name": "a", "ava_id": 1},
@@ -28,10 +28,12 @@ func add_new_members(data_list: Array):
 				skip_flag = true
 		if skip_flag:
 			continue
-		var new_acc: PlayerClass = player_account.instantiate()
+		var new_acc: AccountNode = account_scn.instantiate()
 		add_child(new_acc)
-		new_acc.update(data)
-		new_acc.toggled.connect(_on_chose_acc)
+		print(new_acc)
+		var player = PlayerClass.new(data['pid'], data['name'], data['ava_id'])
+		new_acc.setup(player)
+		new_acc.change_select.connect(_on_chose_acc)
 		acc_chooses.append(false)
 
 func _on_chose_acc(toggled_on: bool):
