@@ -5,17 +5,24 @@
 [ext_resource type="Texture2D" uid="uid://dadgywhnpctu5" path="res://assets/img/avas.png" id="3_mntt1"]
 
 [node name="Account" type="VBoxContainer"]
-offset_right = 128.0
-offset_bottom = 199.0
+anchors_preset = -1
+anchor_right = -0.33641976
+anchor_bottom = -0.018518519
+offset_right = 346.0
+offset_bottom = 262.0
 size_flags_horizontal = 4
+size_flags_vertical = 8
 script = ExtResource("1_ujsm1")
+metadata/_edit_use_anchors_ = true
 
 [node name="CheckButton" type="CheckButton" parent="."]
 layout_mode = 2
+size_flags_horizontal = 4
 text = "Выбрать"
 
 [node name="LabelName" type="Label" parent="."]
 layout_mode = 2
+size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 23
 text = "Vladislav"
 horizontal_alignment = 1
@@ -25,12 +32,14 @@ vertical_alignment = 1
 material = ExtResource("2_0r524")
 custom_minimum_size = Vector2(128, 128)
 layout_mode = 2
+size_flags_horizontal = 4
 texture = ExtResource("3_mntt1")
 region_rect = Rect2(682, 0, 341, 341)
 
 [node name="ScoreLabel" type="Label" parent="."]
 layout_mode = 2
-theme_override_font_sizes/font_size = 23
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 14
 horizontal_alignment = 1
 vertical_alignment = 1
 

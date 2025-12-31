@@ -18,7 +18,7 @@ enum {
 	GAMEEND,
 }
 
-func from_dict(data) -> PlayerClass:
+func from_dict(data: Dictionary) -> PlayerClass:
 	var new_player = PlayerClass.new(data['pid'], data['player_name'], data['ava_id'])
 	new_player.sync(data)
 	return new_player
@@ -26,7 +26,6 @@ func from_dict(data) -> PlayerClass:
 func make_player(pid, player_name) -> void:
 	var ava_id = (ava_id_shift + ava_id_step*get_alive_count()) % 9
 	var new_player = PlayerClass.new(pid, player_name, ava_id)
-	print(new_player)
 	start_player_count += 1
 	player_dict[pid] = new_player
 	
@@ -56,7 +55,6 @@ func get_player(pid: int) -> PlayerClass:
 
 ## if pid == -1, value will be set to everyone
 func set_ready(pid:int, value: bool) -> void:
-	print('set_ready ', str(self))
 	if pid == -1:
 		for sub_pid in player_dict:
 			player_dict[sub_pid].ready_state = value
@@ -312,3 +310,6 @@ func _to_string():
 	
 func get_dict(pid:int) -> Dictionary:
 	return player_dict[pid].to_dict()
+
+func get_acc_info(pid:int, state) -> Dictionary:
+	return player_dict[pid].get_acc_info(state)

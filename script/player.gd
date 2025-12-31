@@ -69,7 +69,7 @@ func to_dict() -> Dictionary:
 
 func get_request() -> int:
 	return request
-	
+
 func get_acc_info(state) -> Dictionary:
 	var res := {}
 	match state:

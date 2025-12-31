@@ -136,7 +136,6 @@ func _server_create_new_player(pid: int, code_text: String):
 		return
 	if code_text in player_codes:
 		if player_codes[code_text]['not_used']:
-			print("Player created: %d" % pid)
 			player_list.make_player(pid, player_codes[code_text]['name'])
 		else:
 			var update_date = {
@@ -187,7 +186,7 @@ func _server_update_game(pid: int, player_screen_data: Dictionary) -> void:
 	if player_list.is_ready(pid): 
 		push_warning("[_server_update_game] already ready")
 		return
-	_client_sync_player.rpc_id(pid, player_list.get_dict(pid))
+	#_client_sync_player.rpc_id(pid, player_list.get_acc_info(pid, state))
 	_client_update_submit_screen.rpc_id(pid)
 	if !player_list.is_alive(pid):
 		push_warning("[_server_update_game] player died")
@@ -201,16 +200,23 @@ func _server_update_game(pid: int, player_screen_data: Dictionary) -> void:
 			_server_update_game_on_voting(pid, player_screen_data)
 		_:
 			push_warning("[update_game] Uknown state: %s" % state)
-
+	
 @rpc("any_peer", "call_remote", "reliable")
 func _client_sync_player(player_dict: Dictionary):
+	print("\tsync player ", player_dict)
 	if my_player_account:
 		my_player_account.sync(player_dict)
-		account.update(my_player_account.get_acc_info(state))
 	else:
 		my_player_account = player_list.from_dict(player_dict)
-	
-		
+
+func _server_setup_all_alive_account():
+	for pid in player_list.get_alive_pids():
+		_client_setup_account.rpc_id(pid)
+
+func _server_sync_all_alive_player():
+	for pid in player_list.get_alive_pids():
+		_client_sync_player.rpc_id(pid, player_list.get_dict(pid))
+
 @rpc("any_peer", "call_remote", "reliable")
 func _client_update_submit_screen():
 	match state: 
@@ -222,6 +228,12 @@ func _client_update_submit_screen():
 			_client_update_submit_screen_on_voting()
 		_:
 			push_warning("[update_my_screen] Uknown state: %s" % state)
+
+@rpc("any_peer", "call_remote", "reliable")
+func _client_setup_account():
+	if !my_player_account:
+		push_warning("бляы ", my_player_account)
+	account.setup(my_player_account)
 
 ## Вызывается после нажатия next_button или ввода имени
 ## Должен обновлять имя и обновлять VotingContaine
@@ -238,7 +250,6 @@ func _server_update_game_on_join(pid: int, _player_screen_data:Dictionary) -> vo
 		'new_accs': player_list.get_accs_list(),
 	}
 	_server_update_alive_client_screen_data(update_date)
-
 	# Проверка готовности к игре
 	if player_list.check_all_alive_ready() and ready_alive_players == start_player_count:
 		_server_set_state_aside(REQUESTING)
@@ -248,7 +259,6 @@ func _client_update_submit_screen_on_join():
 	input_field.visible = false
 	next_button.visible = true
 	next_button.disabled = true
-	account.setup(my_player_account)
 
 @rpc("any_peer", "call_remote", "reliable")
 ## Меняет информацию содержащиюся на экране
@@ -328,6 +338,11 @@ func _server_update_all_client_screen_data(update_date: Dictionary) -> void:
 		
 func _server_change_state():
 	send_dead_log()
+	print('_server_change_state')
+	_server_sync_all_alive_player()
+	if state == JOIN:
+		_server_setup_all_alive_account()
+	
 	state = new_state
 	var alive_count = player_list.get_alive_count()
 	if alive_count <= 1:

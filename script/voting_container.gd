@@ -30,7 +30,6 @@ func add_new_members(data_list: Array):
 			continue
 		var new_acc: AccountNode = account_scn.instantiate()
 		add_child(new_acc)
-		print(new_acc)
 		var player = PlayerClass.new(data['pid'], data['name'], data['ava_id'])
 		new_acc.setup(player)
 		new_acc.change_select.connect(_on_chose_acc)
