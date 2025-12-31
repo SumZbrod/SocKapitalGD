@@ -14,8 +14,6 @@ var request_result := 0
 var vote := {}
 var place := 0
 
-
-
 func update(data: Dictionary):
 	var r = 341
 	var x = data['ava_id'] % 3

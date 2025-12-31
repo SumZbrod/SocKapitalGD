@@ -40,8 +40,7 @@ const PORT = 8080
 var SERVER_URL: String
 
 var clock := .0
-const wait_time := 5 * 1 #TODO
-
+const wait_time := 5 * 5 #TODO
 
 func _ready() -> void:
 	if OS.has_feature("web"):
@@ -62,7 +61,7 @@ func _ready() -> void:
 	if !player_codes:
 		var names = "ABCDEXYZW".split()
 		for i in range(start_player_count):
-			player_codes[str(i)] = {'name': names[i], 'not_used': true}
+			player_codes[str(i+1)] = {'name': names[i], 'not_used': true}
 	start_player_count = player_codes.size()
 	voting_container.change_decition.connect(_on_change_voting)
 	input_field.text_submitted.connect(_on_text_submitted)
@@ -381,6 +380,7 @@ func _server_update_all_client_screen_data(update_date: Dictionary) -> void:
 		_client_change_screen_data.rpc_id(pid, update_date)
 		
 func _server_change_state():
+	clock = 0
 	send_dead_log()
 	state = new_state
 	var alive_count = get_alive_count()
@@ -426,6 +426,7 @@ func reset_player_request_vote():
 ## Подготавливает информацию обигроках к началу нового раунда
 ## Отправляет новые данные об экранах универсальную игроков
 func _server_set_requesting_state(alive_count: int):
+	clock = wait_time
 	reset_player_request_vote()
 	reset_game_data()
 	
@@ -498,6 +499,7 @@ func calc_request_result():
 			players_data[pid]['balance'] += max_minus
 	
 func _server_set_voting_state():
+	clock = wait_time
 	for pid in players_data:
 		if !players_data[pid]['alive']:
 			continue
@@ -686,10 +688,19 @@ func _server_set_gameend_state() -> void:
 func print_time():
 	var time_dict = Time.get_time_dict_from_system()
 	print("%02d:%02d:%02d" % [time_dict.hour, time_dict.minute, time_dict.second])
-		
+
+@rpc("any_peer", "call_remote", "reliable")
+func _client_sync_clock(server_clock):
+	clock = server_clock
+	update_clock()
+	print("clock updated")
+	
 func _on_ping_timer_timeout() -> void:
 	if multiplayer.is_server():
 		print_time()
+		for pid in players_data:
+			if players_data[pid]['alive']:
+				_client_sync_clock.rpc_id(pid, clock)
 		return  
 	if multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		keep_alive_dummy.rpc_id(1, multiplayer.get_unique_id()) 
