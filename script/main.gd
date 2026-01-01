@@ -393,7 +393,7 @@ func _server_update_game_on_requesting(pid: int, player_data: Dictionary):
 func _client_update_submit_screen_on_requesting():
 	var update_data = {
 		'slider_editable': false,
-		'next_button': "Ваш запрос: %d" % my_player_account.get_request(),
+		'next_button': "Вы сделали запрос",
 		'next_button_disabled': true,
 	}
 	_client_change_screen_data(update_data)
