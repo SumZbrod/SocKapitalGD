@@ -77,6 +77,8 @@ func time_convert(time_in_sec):
 	return "%02d:%02d" % [minutes, seconds]
 
 func update_clock():
+	if multiplayer.is_server():
+		return 
 	if clock > 0:
 		label_clock.text = time_convert(clock)
 	else:
@@ -108,24 +110,16 @@ func start_client() -> void:
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 
-func _on_player_connected(pid: int) -> void:
-	_server_restore_screen(pid)
-
+func _on_player_connected(_pid: int) -> void:
+	return 
+	
 func _on_player_disconnected(pid: int) -> void:
 	player_list.erase(pid)
 	print("Отключился ID " + str(pid))
 
 func _on_connected_to_server() -> void:
 	var pid = multiplayer.get_unique_id()
-	_server_restore_screen(pid)
 	print("Подключен! ID: " + str(pid))
-
-@rpc("any_peer", "call_remote", "reliable")
-func _server_restore_screen(pid: int):
-	if !multiplayer.is_server():
-		return
-	if player_list.is_exist(pid):
-		player_list.set_ready(pid, true)
 
 func _on_connection_failed() -> void:
 	message_label.text = "Сервер недоступен"
@@ -186,7 +180,6 @@ func _server_update_game(pid: int, player_screen_data: Dictionary) -> void:
 	if player_list.is_ready(pid): 
 		push_warning("[_server_update_game] already ready")
 		return
-	#_client_sync_player.rpc_id(pid, player_list.get_acc_info(pid, state))
 	_client_update_submit_screen.rpc_id(pid)
 	if !player_list.is_alive(pid):
 		push_warning("[_server_update_game] player died")
@@ -290,8 +283,12 @@ func _client_change_screen_data(update_date: Dictionary) -> void:
 			_:
 				push_warning("[change_screen_data] Uknown key: %s" % key)
 
+func _client_update_acc_info():
+	account.update(my_player_account.get_acc_info(state))
+
 # Меняет отображаемые элеементы на экране 
 func _client_change_screen_properties() -> void:
+	_client_update_acc_info()
 	match state:
 		JOIN:
 			next_button.disabled = false
@@ -337,7 +334,6 @@ func _server_update_all_client_screen_data(update_date: Dictionary) -> void:
 		
 func _server_change_state():
 	send_dead_log()
-	print('_server_change_state')
 	_server_sync_all_alive_player()
 	if state == JOIN:
 		_server_setup_all_alive_account()

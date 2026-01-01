@@ -116,17 +116,14 @@ patch_margin_right = 15
 patch_margin_bottom = 15
 
 [node name="Account" parent="." instance=ExtResource("5_4j5ol")]
-visible = false
 layout_mode = 1
-anchors_preset = 3
 anchor_left = 1.0
-anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -150.0
-offset_top = -226.0
-offset_right = -22.0
-offset_bottom = 1.0
+offset_left = -186.0
+offset_top = 381.0
+offset_right = -58.0
+offset_bottom = -17.0
 grow_horizontal = 0
 grow_vertical = 0
 

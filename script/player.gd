@@ -78,3 +78,6 @@ func get_acc_info(state) -> Dictionary:
 			res['score'] = balance
 			res['message'] = "Запросил: %d; Получил: %d" % [request, request_result]
 	return res
+
+func _to_string() -> String:
+	return str(to_dict())

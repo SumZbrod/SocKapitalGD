@@ -11,6 +11,15 @@ var button_pressed: bool
 var disabled: bool
 var pid: int
 
+func _ready() -> void:
+	make_material_unique()
+
+func make_material_unique():
+	var nine_patch_rect_material = nine_patch_rect.get_material()
+	if nine_patch_rect_material:
+		var unique_material = material.duplicate(true)
+		nine_patch_rect.set_material(unique_material)
+
 func setup(player:PlayerClass):
 	pid = player.get_pid()
 	label_name.text = player.get_player_name()

@@ -155,11 +155,12 @@ func set_request_result(shrink_budget, power):
 		if shrink_budget == init_budget:
 			player_dict[pid].request_result = player_dict[pid].request
 		else:
-			player_dict[pid].request_result = round((player_dict[pid].request**power) / power_sum * shrink_budget)
+			player_dict[pid].request_result = int((float(player_dict[pid].request)**power) / float(power_sum) * shrink_budget)
 		player_dict[pid].balance += player_dict[pid].request_result
-
+		
 func calc_request_result():
-	var inequality_degree := .5 + 2*randf()
+	#var inequality_degree := .5 + 2*randf()
+	var inequality_degree := 2
 	var sum_request := get_request(-1)
 	
 	var shrink_budget = min(init_budget, 2*init_budget - sum_request)
@@ -168,6 +169,7 @@ func calc_request_result():
 	if shrink_budget <= 0:
 		var max_minus := get_subsidia()
 		game_history += "субсидия равна: %d\n" % max_minus
+	## TODO нету субсидии
 
 func increase_balance(pid:int, value:int) -> void:
 	if pid == -1:
