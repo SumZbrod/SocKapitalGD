@@ -26,7 +26,6 @@ func _init(pid_, player_name_, ava_id_):
 	ava_id = ava_id_
 
 func kill():
-	print("[PlayerClass] kill()")
 	alive = false
 
 func get_ava_rect() -> Rect2:

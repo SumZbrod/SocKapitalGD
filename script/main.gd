@@ -81,7 +81,7 @@ func time_convert(time_in_sec):
 
 func update_clock():
 	if multiplayer.is_server():
-		return 
+		return
 	if clock > 0:
 		label_clock.text = time_convert(clock)
 	else:
@@ -337,6 +337,7 @@ func _server_update_all_client_screen_data(update_date: Dictionary) -> void:
 		_client_change_screen_data.rpc_id(pid, update_date)
 		
 func _server_change_state():
+	clock = 0
 	send_dead_log()
 	_server_sync_all_player()
 	if state == JOIN:
@@ -373,6 +374,7 @@ func _client_update_player_state(_state):
 ## Подготавливает информацию обигроках к началу нового раунда
 ## Отправляет новые данные об экранах универсальную игроков
 func _server_set_requesting_state():
+	clock = wait_time
 	player_list.reset_request_vote()
 	player_list.reset_game_data()
 	player_list.set_init_budget()
@@ -409,6 +411,7 @@ func _on_h_slider_value_changed(value: float) -> void:
 	_client_change_screen_data(update_date)
 
 func _server_set_voting_state():
+	clock = wait_time
 	for pid in player_list.get_alive_pids():
 		var new_player_date = player_list.get_state_screen_data(pid, "set_voting")
 		player_list.reset_request_vote()
