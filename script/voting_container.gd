@@ -35,13 +35,35 @@ func add_new_members(data_list: Array):
 		new_acc.change_select.connect(_on_chose_acc)
 		acc_chooses.append(false)
 
+func reset_accs():
+	var i := 0
+	for acc in get_children():
+		if acc_chooses[i]:
+			acc_chooses[i] = false
+		acc.reset()
+		i += 1
+
+func disable_accs():
+	var i := 0
+	for acc in get_children():
+		if acc_chooses[i]:
+			acc_chooses[i] = false
+		acc.reset()
+		acc.disabled = true
+		i += 1
+
 func _on_chose_acc(toggled_on: bool):
 	if toggled_on:
 		var i := 0
 		for acc in get_children():
-			acc.button_pressed = acc_chooses[i] != acc.button_pressed
+			acc.change_press_button(acc_chooses[i] != acc.button_pressed)
 			acc_chooses[i] = acc.button_pressed
+			if !acc_chooses[i]:
+				acc.deselectit()
 			i += 1
+	else:
+		reset_accs()
+		
 	change_decition.emit(get_choose())
 	
 func get_choose() -> int:
@@ -51,6 +73,7 @@ func get_choose() -> int:
 	return 0
 	
 func show_voting(pid_variants: Array):
+	reset_accs()
 	visible = true
 	for acc in get_children():
 		if acc.get_pid() in pid_variants:

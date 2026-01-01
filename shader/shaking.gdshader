@@ -1,6 +1,6 @@
 shader_type canvas_item;
 varying vec2 world_pos_xy;
-uniform int mode = 0; // 0 - normal 1 - sdelected 2 - deselected
+uniform int mode = 0; // 0 - normal 1 - selected 2 - deselected 3 - hjover
 
 float saw(float x){
 	x = (1. - mod(x, 2.));
@@ -14,7 +14,7 @@ void vertex() {
 	    local_pos.y += sin(TIME + world_pos_xy.x-local_pos.x*.5) * 5.;
 	}
 	else if (mode==1) {
-		float mag = (1.+saw(TIME)*.1);
+		float mag = (1.+saw(TIME)*.05);
 		local_pos = mag*(local_pos -64.)+64.;
 	}
 	VERTEX = local_pos;
@@ -27,8 +27,15 @@ void fragment() {
 	if (mode==0) {
 		COLOR = vec4(COLOR.r+b, COLOR.g+1.5*b, COLOR.b, COLOR.a);
 	}
+	else if (mode == 1){
+		COLOR = vec4(COLOR.r+3.*b, COLOR.g+3.*b, COLOR.b+b, COLOR.a);
+		//COLOR = vec4(vec3(COLOR.a), COLOR.a);
+	}
 	else if (mode == 2){
 		float grad = (COLOR.r + COLOR.g + COLOR.b) * .2;  
 		COLOR = vec4(vec3(grad), COLOR.a);
+	}
+	else if (mode == 3){
+		COLOR = vec4(COLOR.r+3.*b, COLOR.g+3.*b, COLOR.b+b, COLOR.a);
 	}
 }

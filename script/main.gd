@@ -320,6 +320,7 @@ func _client_change_screen_properties() -> void:
 			next_button.disabled = true
 			next_button.visible = false
 			voting_container.visible = true
+			voting_container.disable_accs()
 			h_slider.visible = false
 		_:
 			push_warning("[change_screen_properties] Uknown state: %s" % state)

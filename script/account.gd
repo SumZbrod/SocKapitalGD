@@ -1,6 +1,5 @@
 class_name AccountNode extends VBoxContainer
 
-@onready var check_button: CheckButton = $CheckButton
 @onready var label_name: Label = $LabelName
 @onready var nine_patch_rect: NinePatchRect = $NinePatchRect
 @onready var score_label: Label = $ScoreLabel
@@ -8,8 +7,9 @@ class_name AccountNode extends VBoxContainer
 signal change_select(value: bool)
 
 var button_pressed: bool
-var disabled: bool
+var disabled: bool = true
 var pid: int
+var deselected: bool = false
 
 func _ready() -> void:
 	make_material_unique()
@@ -17,7 +17,7 @@ func _ready() -> void:
 func make_material_unique():
 	var nine_patch_rect_material = nine_patch_rect.get_material()
 	if nine_patch_rect_material:
-		var unique_material = material.duplicate(true)
+		var unique_material = nine_patch_rect_material.duplicate(true)
 		nine_patch_rect.set_material(unique_material)
 
 func setup(player:PlayerClass):
@@ -39,10 +39,39 @@ func make_visible_personal_data():
 	score_label.visible = true
 	message_label.visible = true
 
-func _on_check_button_toggled(toggled_on: bool) -> void:
-	emit_signal("change_select", toggled_on)
-	button_pressed = check_button.button_pressed
-	disabled = check_button.disabled
-
 func get_pid():
 	return pid
+
+func set_ava_mode(value:int):
+	var ava_material:ShaderMaterial = nine_patch_rect.get_material()
+	ava_material.set_shader_parameter("mode", value)
+
+func change_press_button(value):
+	button_pressed = value
+	set_ava_mode(int(button_pressed))
+
+func _on_button_pressed() -> void:
+	if !disabled:
+		change_press_button(!button_pressed)
+		emit_signal("change_select", button_pressed)
+		deselected = false
+		
+func _on_button_mouse_entered() -> void:
+	if !disabled and !button_pressed:
+		set_ava_mode(3)
+
+func _on_button_mouse_exited() -> void:
+	if !disabled and !button_pressed:
+		if deselected:
+			set_ava_mode(2)
+		else:
+			set_ava_mode(0)
+
+func reset() -> void:
+	set_ava_mode(0)
+	deselected = false
+
+func deselectit() -> void:
+	set_ava_mode(2)
+	deselected = true
+	 

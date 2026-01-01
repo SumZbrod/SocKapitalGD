@@ -17,11 +17,6 @@ size_flags_vertical = 8
 script = ExtResource("1_ujsm1")
 metadata/_edit_use_anchors_ = true
 
-[node name="CheckButton" type="CheckButton" parent="."]
-layout_mode = 2
-size_flags_horizontal = 4
-text = "Выбрать"
-
 [node name="LabelName" type="Label" parent="."]
 layout_mode = 2
 size_flags_horizontal = 4
@@ -38,6 +33,15 @@ size_flags_horizontal = 4
 texture = ExtResource("3_mntt1")
 region_rect = Rect2(682, 0, 341, 341)
 
+[node name="Button" type="Button" parent="NinePatchRect"]
+modulate = Color(1, 1, 1, 0)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
 [node name="ScoreLabel" type="Label" parent="."]
 layout_mode = 2
 size_flags_horizontal = 4
@@ -48,4 +52,6 @@ vertical_alignment = 1
 [node name="MessageLabel" type="Label" parent="."]
 layout_mode = 2
 
-[connection signal="toggled" from="CheckButton" to="." method="_on_check_button_toggled"]
+[connection signal="mouse_entered" from="NinePatchRect/Button" to="." method="_on_button_mouse_entered"]
+[connection signal="mouse_exited" from="NinePatchRect/Button" to="." method="_on_button_mouse_exited"]
+[connection signal="pressed" from="NinePatchRect/Button" to="." method="_on_button_pressed"]
