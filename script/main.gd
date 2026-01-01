@@ -228,8 +228,6 @@ func _client_update_submit_screen():
 
 @rpc("any_peer", "call_remote", "reliable")
 func _client_setup_account():
-	if !my_player_account:
-		push_warning("бляы ", my_player_account)
 	account.setup(my_player_account)
 
 ## Вызывается после нажатия next_button или ввода имени

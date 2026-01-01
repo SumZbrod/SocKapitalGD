@@ -17,6 +17,10 @@ void vertex() {
 		float mag = (1.+saw(TIME)*.05);
 		local_pos = mag*(local_pos -64.)+64.;
 	}
+	else if (mode==4) {
+	}
+	//local_pos.x = 64.+(local_pos.x - 64.) * min(1., abs(mod(TIME, 3.)*3.-1.));
+	local_pos.x = 64.+(local_pos.x - 64.) * min(1., abs(TIME*3.-1.));
 	VERTEX = local_pos;
 }
 
