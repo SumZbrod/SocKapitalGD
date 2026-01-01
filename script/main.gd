@@ -32,7 +32,7 @@ const PORT = 8080
 var SERVER_URL: String
 
 var clock := .0
-const wait_time := 5 * 60 #TODO
+var wait_time := 5 * 60 #TODO
 
 func _ready() -> void:
 	if OS.has_feature("web"):
@@ -50,9 +50,12 @@ func _ready() -> void:
 				var code = randi() % 1_0000
 				player_codes[str(code)] = {'name': pl_name, 'not_used': true}
 				print("%s %d" % [pl_name, code])
-		if arg.begins_with("#"):
+		elif arg.begins_with("#"):
 			arg = arg.right(-1)
 			start_player_count = int(arg)
+		elif arg.begins_with("^"):
+			arg = arg.right(-1)
+			wait_time = int(arg)
 	if !player_codes:
 		var names = "ABCDEXYZW".split()
 		for i in range(start_player_count):
