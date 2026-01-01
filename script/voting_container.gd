@@ -82,7 +82,7 @@ func show_voting(pid_variants: Array):
 		else:
 			acc.disabled = true
 			acc.visible = false
-
+	
 func clear_selaction():
 	var i := 0
 	for acc in get_children():

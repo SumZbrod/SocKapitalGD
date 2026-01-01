@@ -9,6 +9,8 @@ var request_result := 0
 var vote := {}
 var place := 0
 var pid
+var subsidia
+
 enum {
 	JOIN,
 	REQUESTING,
@@ -24,6 +26,7 @@ func _init(pid_, player_name_, ava_id_):
 	ava_id = ava_id_
 
 func kill():
+	print("[PlayerClass] kill()")
 	alive = false
 
 func get_ava_rect() -> Rect2:
@@ -49,6 +52,7 @@ func sync(player_dict:Dictionary):
 	vote = player_dict['vote'] 
 	place = player_dict['place'] 
 	pid = player_dict['pid'] 
+	subsidia = player_dict['subsidia'] 
 
 func get_player_name():
 	return player_name
@@ -65,6 +69,7 @@ func to_dict() -> Dictionary:
 		'request_result': request_result,
 		'vote': vote,
 		'place': place,
+		'subsidia': subsidia,
 	}
 
 func get_request() -> int:
@@ -72,11 +77,13 @@ func get_request() -> int:
 
 func get_acc_info(state) -> Dictionary:
 	var res := {}
+	res['score'] = str(balance)
 	match state:
-		_:
+		VOTING:
 			res['name'] = player_name
-			res['score'] = balance
-			res['message'] = "Запросил: %d; Получил: %d" % [request, request_result]
+			res['message'] = "Запросил: %d\n Получил: %d" % [request, request_result]
+			if subsidia:
+				res['message'] += '\n Субсидия: %d' % subsidia
 	return res
 
 func _to_string() -> String:

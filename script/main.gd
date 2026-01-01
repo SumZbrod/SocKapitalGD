@@ -50,6 +50,9 @@ func _ready() -> void:
 				var code = randi() % 1_0000
 				player_codes[str(code)] = {'name': pl_name, 'not_used': true}
 				print("%s %d" % [pl_name, code])
+		if arg.begins_with("#"):
+			arg = arg.right(-1)
+			start_player_count = int(arg)
 	if !player_codes:
 		var names = "ABCDEXYZW".split()
 		for i in range(start_player_count):
@@ -205,8 +208,8 @@ func _server_setup_all_alive_account():
 	for pid in player_list.get_alive_pids():
 		_client_setup_account.rpc_id(pid)
 
-func _server_sync_all_alive_player():
-	for pid in player_list.get_alive_pids():
+func _server_sync_all_player():
+	for pid in player_list.get_pids():
 		_client_sync_player.rpc_id(pid, player_list.get_dict(pid))
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -335,7 +338,7 @@ func _server_update_all_client_screen_data(update_date: Dictionary) -> void:
 		
 func _server_change_state():
 	send_dead_log()
-	_server_sync_all_alive_player()
+	_server_sync_all_player()
 	if state == JOIN:
 		_server_setup_all_alive_account()
 	
@@ -439,7 +442,7 @@ func _on_change_voting(pid:int):
 		next_button.text = "Проголосовать"
 	else:
 		next_button.text = "Пропустить\nголосование"
-
+	
 func _server_set_eliminating_state():
 	if player_list.vote_winner:
 		var label_state_str := "" 
@@ -460,10 +463,12 @@ func _server_set_eliminating_state():
 			'clear_selaction': true,
 		}
 		_server_update_all_client_screen_data(update_data)
+		_server_sync_all_player()
 		_server_set_state_aside(REQUESTING)
 	else:
 		push_warning("vote winner didn't calc")
 		player_list.calc_voting_result(true)
+		_server_set_state_aside(ELIMINATING)
 
 @rpc("any_peer", "call_remote", "reliable")
 func _client_make_gameover() -> void:
@@ -521,11 +526,11 @@ func _server_set_gameend_state() -> void:
 		update_data['voting_vars'] = win_pids
 		
 	_server_update_all_client_screen_data(update_data)
-	
+
 func print_time():
 	var time_dict = Time.get_time_dict_from_system()
 	print("%02d:%02d:%02d" % [time_dict.hour, time_dict.minute, time_dict.second])
-		
+
 func _on_ping_timer_timeout() -> void:
 	if multiplayer.is_server():
 		print_time()

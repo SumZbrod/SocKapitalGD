@@ -3,6 +3,7 @@ class_name PlayerListClass
 var player_dict := {}
 var voting_dict := {}
 var vote_winner := []
+var subsidia := 0
 var init_budget := 0
 const PLAYER_COST = 100
 var game_history := ""
@@ -35,7 +36,7 @@ func kill(pid: int, place:=-1) -> void:
 		player_dict[pid].place = get_alive_count()
 	else:
 		player_dict[pid].place = place
-
+	
 func make_gost(pid) -> void:
 	var new_player = PlayerClass.new(pid, 'Gost', 0)
 	new_player.kill()
@@ -138,13 +139,13 @@ func set_request(pid: int, value: int) -> void:
 	player_dict[pid].request = value
 	
 ## if pid == -1, return sum of requestings of everyone
-func get_request(pid: int, power:=1) -> int:
-	var res := 0 
+func get_request(pid: int, power:=1.) -> float:
+	var res := 0.
 	if pid == -1:
 		for sub_pid in get_alive_pids():
-			res += player_dict[sub_pid].request ** power
+			res += float(player_dict[sub_pid].request) ** power
 	elif is_exist(pid):
-		res = player_dict[pid].request ** power
+		res = float(player_dict[pid].request) ** power
 	else:
 		push_warning("[playerplayer_dict:set_ready] pid didn't exist: %d" % pid)
 	return res
@@ -159,16 +160,20 @@ func set_request_result(shrink_budget, power):
 		player_dict[pid].balance += player_dict[pid].request_result
 		
 func calc_request_result():
-	#var inequality_degree := .5 + 2*randf()
-	var inequality_degree := 2
+	var inequality_degree := .5 + 2*randf()
 	var sum_request := get_request(-1)
-	
 	var shrink_budget = min(init_budget, 2*init_budget - sum_request)
 	shrink_budget = max(PLAYER_COST, abs(shrink_budget)) * (1 if shrink_budget > 0 else -1)
 	set_request_result(shrink_budget, inequality_degree)
 	if shrink_budget <= 0:
-		var max_minus := get_subsidia()
-		game_history += "субсидия равна: %d\n" % max_minus
+		subsidia = get_subsidia()
+		game_history += "субсидия равна: %d\n" % subsidia
+	else:
+		subsidia = 0
+	for pid in player_dict:
+		if player_dict[pid].alive:
+			player_dict[pid].balance += subsidia
+			player_dict[pid].subsidia = subsidia
 	## TODO нету субсидии
 
 func increase_balance(pid:int, value:int) -> void:
@@ -184,7 +189,7 @@ func get_subsidia() -> int:
 		if player_dict[pid].alive:
 			if max_minus > player_dict[pid].request_result:
 				max_minus = player_dict[pid].request_result
-	return max_minus
+	return abs(max_minus)
 	
 	
 func get_voiting_vars_for(pid:int) -> Array:
@@ -192,7 +197,7 @@ func get_voiting_vars_for(pid:int) -> Array:
 	for sub_pid in player_dict:
 		if sub_pid == pid:
 			continue 
-		if !player_dict[pid].alive:
+		if !player_dict[sub_pid].alive:
 			continue
 		voting_vars.append(sub_pid)
 	return voting_vars
@@ -261,7 +266,6 @@ func calc_voting_result(exaption_enable=false):
 				selected_pid.append(pid)
 	else:
 		selected_pid = [get_first_most_richer_player()]
-				
 	vote_winner = []
 	for pid in selected_pid:
 		var winner := {
@@ -281,8 +285,16 @@ func get_state_log(pid: int, state) -> String:
 			pid_data = [pid_data.player_name, pid_data.request, pid_data.request_result, pid_data.balance]
 			res += "{0} запросил {1} получил {2} баланс равен {3}\n".format(pid_data)
 		VOTING:
-			pid_data = [pid_data.player_name, str(pid_data.vote)]
-			res += "{0} проголосовал {1}".format(pid_data)
+			var vote_name_ 
+			var vote_value_
+			for k in pid_data.vote:
+				vote_name_ = player_dict[k].player_name
+				vote_value_ = pid_data.vote[k]
+			pid_data = [pid_data.player_name, vote_value_, vote_name_]
+			if vote_name_:
+				res += "{0} поставил {1} против {2}\n".format(pid_data)
+			else:
+				res += "{0} не голосовал\n".format(pid_data)
 	return res
 
 func set_place(pid:int, place:int):
