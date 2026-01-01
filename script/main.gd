@@ -1,25 +1,20 @@
 extends Control
-
 @export var start_player_count := 5
-@export var player_cost := 100
 @onready var message_label: Label = $VBox/MessageLabel
 @onready var input_field: LineEdit = $VBox/InputField
 @onready var next_button: Button = $VBox/NextButton
 @onready var h_slider: HSlider = $VBox/HSlider
-@onready var my_name: Label = $Account/MyName
-@onready var my_ava: NinePatchRect = $Account/MyAva
-@onready var my_score: Label = $Account/MyScore
-@onready var my_result: Label = $Account/MyResult
-@onready var account: VBoxContainer = $Account
+@onready var account: AccountNode = $Account
 @onready var history_log: TextEdit = $HistoryLog
 @onready var ping_timer: Timer = $PingTimer
 @onready var label_clock: Label = $UpperBlock/LabelClock
 @onready var label_state: Label = $UpperBlock/LabelState
-@onready var voting_container: VotingContainerClass = $UpperBlock/VotingContainer
+@onready var voting_container: VotingContainerNode = $UpperBlock/VotingContainer
 @onready var state_timer: Timer = $StateTimer
 var new_state
-var game_history := ''
 var peer := WebSocketMultiplayerPeer.new()
+const account_scn = preload("res://scene/account.tscn")
+var my_player_account: PlayerClass
 
 enum {
 	JOIN,
@@ -30,10 +25,7 @@ enum {
 }
 var state := JOIN
 
-var players_data: Dictionary = {}  # {player_id: {'place': int, 'name':str, 'request_result':int, 'alive': bool 'ready': bool, 'balance': int, 'request': int, 'vote': {player_id: int}}}
-var game_data: Dictionary = {'init_budget': 0, 'voting': {}, 'vote_winner': {}}
-var ava_id_shift := randi() % 9
-var ava_id_step:int = [1, 2, 4, 5, 7, 8].pick_random()
+var player_list := PlayerListClass.new()
 var player_codes = {}
 var gost_code = "-6767"
 const PORT = 8080
@@ -58,6 +50,9 @@ func _ready() -> void:
 				var code = randi() % 1_0000
 				player_codes[str(code)] = {'name': pl_name, 'not_used': true}
 				print("%s %d" % [pl_name, code])
+		if arg.begins_with("#"):
+			arg = arg.right(-1)
+			start_player_count = int(arg)
 	if !player_codes:
 		var names = "ABCDEXYZW".split()
 		for i in range(start_player_count):
@@ -118,49 +113,39 @@ func start_client() -> void:
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 
-func _on_player_connected(pid: int) -> void:
-	_server_restore_screen(pid)
-
-func _on_player_disconnected(id: int) -> void:
-	if id in players_data:
-		players_data.erase(id)  
-	print("Отключился ID " + str(id))
+func _on_player_connected(_pid: int) -> void:
+	return 
+	
+func _on_player_disconnected(pid: int) -> void:
+	player_list.erase(pid)
+	print("Отключился ID " + str(pid))
 
 func _on_connected_to_server() -> void:
 	var pid = multiplayer.get_unique_id()
-	_server_restore_screen(pid)
 	print("Подключен! ID: " + str(pid))
-
-@rpc("any_peer", "call_remote", "reliable")
-func _server_restore_screen(pid: int):
-	if !multiplayer.is_server():
-		return
-	if pid in players_data:
-		players_data[pid]['ready'] = true
 
 func _on_connection_failed() -> void:
 	message_label.text = "Сервер недоступен"
 
 @rpc("any_peer", "call_remote", "reliable")
-func _server_create_new_player(id: int, code_text: String):
+func _server_create_new_player(pid: int, code_text: String):
 	if !multiplayer.is_server():
 		return
 	if code_text in player_codes:
 		if player_codes[code_text]['not_used']:
-			var ava_id = (ava_id_shift + ava_id_step*get_alive_count()) % 9
-			players_data[id] = {'alive': true, 'ready': false, 'name': player_codes[code_text]['name'], 'ava_id': ava_id, 'balance': 0, 'request': 0, 'request_result':0, 'vote': {}, 'place': 0}
+			player_list.make_player(pid, player_codes[code_text]['name'])
 		else:
 			var update_date = {
 				"message_label" : "Этот код уже использован"
 			}
-			_client_change_screen_data.rpc_id(id, update_date)
+			_client_change_screen_data.rpc_id(pid, update_date)
 	elif code_text == str(gost_code):
-		players_data[id] = {'alive': false, 'ready': false, 'name': 'gost', 'ava_id': 0, 'balance': 0, 'request': 0, 'request_result':0, 'vote': {}, 'place': 0}
+		player_list.make_gost(pid)
 	else:
 		var update_date = {
 			"message_label" : "Неправильный код"
 		}
-		_client_change_screen_data.rpc_id(id, update_date)
+		_client_change_screen_data.rpc_id(pid, update_date)
 
 func get_player_screen_data() -> Dictionary:
 	var res = {
@@ -191,15 +176,15 @@ func _server_update_game(pid: int, player_screen_data: Dictionary) -> void:
 	if !multiplayer.is_server():
 		push_warning("[_server_update_game] not server")
 		return
-	if pid not in players_data:
+	if !player_list.is_exist(pid):
 		push_warning("[_server_update_game] pid not in players_data")
 		push_warning("[_server_update_game] %d" % pid)
 		return
-	if players_data[pid]['ready']: 
+	if player_list.is_ready(pid): 
 		push_warning("[_server_update_game] already ready")
 		return
-	_client_update_submit_screen.rpc_id(pid, players_data[pid])
-	if !players_data[pid]['alive']:
+	_client_update_submit_screen.rpc_id(pid)
+	if !player_list.is_alive(pid):
 		push_warning("[_server_update_game] player died")
 		return
 	match state: 
@@ -213,82 +198,68 @@ func _server_update_game(pid: int, player_screen_data: Dictionary) -> void:
 			push_warning("[update_game] Uknown state: %s" % state)
 	
 @rpc("any_peer", "call_remote", "reliable")
-func _client_update_submit_screen(player_data):
+func _client_sync_player(player_dict: Dictionary):
+	if my_player_account:
+		my_player_account.sync(player_dict)
+	else:
+		my_player_account = player_list.from_dict(player_dict)
+
+func _server_setup_all_alive_account():
+	for pid in player_list.get_alive_pids():
+		_client_setup_account.rpc_id(pid)
+
+func _server_sync_all_player():
+	for pid in player_list.get_pids():
+		_client_sync_player.rpc_id(pid, player_list.get_dict(pid))
+
+@rpc("any_peer", "call_remote", "reliable")
+func _client_update_submit_screen():
 	match state: 
 		JOIN:
-			_client_update_submit_screen_on_join(player_data)
+			_client_update_submit_screen_on_join()
 		REQUESTING:
-			_client_update_submit_screen_on_requesting(player_data)
+			_client_update_submit_screen_on_requesting()
 		VOTING:
-			_client_update_submit_screen_on_voting(player_data)
+			_client_update_submit_screen_on_voting()
 		_:
 			push_warning("[update_my_screen] Uknown state: %s" % state)
 
-func get_accs_list():
-	var new_accs = []
-	for sub_pid in players_data:
-		var new_acc = {
-			'pid' = sub_pid,
-			'ava_id' = players_data[sub_pid]['ava_id'],
-			'name' = players_data[sub_pid]['name'],
-		}
-		new_accs.append(new_acc)
-	return new_accs
+@rpc("any_peer", "call_remote", "reliable")
+func _client_setup_account():
+	if !my_player_account:
+		push_warning("бляы ", my_player_account)
+	account.setup(my_player_account)
 
 ## Вызывается после нажатия next_button или ввода имени
 ## Должен обновлять имя и обновлять VotingContaine
 ## Проверяет что игру можно начинать
 ## Не даёт повторного выполнения
-func _server_update_game_on_join(pid: int, _player_data: Dictionary) -> void:
-	# Обновление инфы об игроке
-	players_data[pid]['ready'] = true
+func _server_update_game_on_join(pid: int, _player_screen_data:Dictionary) -> void:
+	player_list.set_ready(pid, true)
 	
 	# Обновление данных экрана игроков
-	var ready_alive_players := get_alive_ready_count()
+	var ready_alive_players := player_list.get_alive_ready_count()
 	var update_date = {
 		'label_state': "К игре готовы: %d / %d
 		" % [ready_alive_players, start_player_count],
-		'new_accs': get_accs_list(),
+		'new_accs': player_list.get_accs_list(),
 	}
 	_server_update_alive_client_screen_data(update_date)
-
 	# Проверка готовности к игре
-	if check_all_alive_ready() and ready_alive_players == start_player_count:
+	if player_list.check_all_alive_ready() and ready_alive_players == start_player_count:
 		_server_set_state_aside(REQUESTING)
 
-func _client_update_submit_screen_on_join(player_data: Dictionary):
+func _client_update_submit_screen_on_join():
 	input_field.editable = false
 	input_field.visible = false
 	next_button.visible = true
 	next_button.disabled = true
-	
-	var r = 341
-	var x = player_data['ava_id'] % 3
-	@warning_ignore("integer_division")
-	var y = player_data['ava_id'] / 3
-	var ava_rect = Rect2(r*x, r*y, r, r)
-		
-	var update_data = {
-		'next_button': "Готов",
-		"my_name": player_data['name'],
-		"my_ava": ava_rect,
-		"my_score": str(int(player_data['balance'])),
-	}
-	_client_change_screen_data(update_data)
 
 @rpc("any_peer", "call_remote", "reliable")
 ## Меняет информацию содержащиюся на экране
 func _client_change_screen_data(update_date: Dictionary) -> void:
 	for key in update_date:
 		match key:
-			"my_name":
-				my_name.text = update_date[key]
-			"my_score":
-				my_score.text = update_date[key]
-			"my_ava":
-				my_ava.region_rect = update_date[key]
-			"my_result":
-				my_result.text = update_date[key]
 			"label_state":
 				label_state.text = update_date[key]
 			"next_button":
@@ -315,8 +286,12 @@ func _client_change_screen_data(update_date: Dictionary) -> void:
 			_:
 				push_warning("[change_screen_data] Uknown key: %s" % key)
 
+func _client_update_acc_info():
+	account.update(my_player_account.get_acc_info(state))
+
 # Меняет отображаемые элеементы на экране 
 func _client_change_screen_properties() -> void:
+	_client_update_acc_info()
 	match state:
 		JOIN:
 			next_button.disabled = false
@@ -348,53 +323,34 @@ func _client_change_screen_properties() -> void:
 			next_button.disabled = true
 			next_button.visible = false
 			voting_container.visible = true
+			voting_container.disable_accs()
 			h_slider.visible = false
 		_:
 			push_warning("[change_screen_properties] Uknown state: %s" % state)
 
-func get_alive_ready_count() -> int:
-	var res := 0
-	for pl_id in players_data:
-		if players_data[pl_id]['ready'] and players_data[pl_id]['alive']:
-			res += 1
-	return res
-
-func get_alive_count() -> int:
-	var res := 0
-	for pl_id in players_data:
-		if players_data[pl_id]['alive']:
-			res += 1
-	return res
-
-func check_all_alive_ready() -> bool:
-	for pl_id in players_data:
-		if !players_data[pl_id]['ready'] and players_data[pl_id]['alive']:
-			return false
-	return true
-
 func _server_update_alive_client_screen_data(update_date: Dictionary) -> void:
-	for pid in players_data:
-		if players_data[pid]['alive']:
-			_client_change_screen_data.rpc_id(pid, update_date)
+	for pid in player_list.get_alive_pids():
+		_client_change_screen_data.rpc_id(pid, update_date)
 
 func _server_update_all_client_screen_data(update_date: Dictionary) -> void:
-	for pid in players_data:
+	for pid in player_list.get_pids():
 		_client_change_screen_data.rpc_id(pid, update_date)
 		
 func _server_change_state():
 	clock = 0
 	send_dead_log()
+	_server_sync_all_player()
+	if state == JOIN:
+		_server_setup_all_alive_account()
+	
 	state = new_state
-	var alive_count = get_alive_count()
+	var alive_count = player_list.get_alive_count()
 	if alive_count <= 1:
 		state = GAMEEND
-		
-	for pid in players_data:
-		players_data[pid]['ready'] = false
-	
+	player_list.set_ready(-1, false)
 	match state:
 		REQUESTING:
-			_server_set_requesting_state(alive_count)
+			_server_set_requesting_state()
 		VOTING:
 			_server_set_voting_state()
 		ELIMINATING:
@@ -406,9 +362,8 @@ func _server_change_state():
 	_server_update_alive_players_state()
 	
 func _server_update_alive_players_state():
-	for pid in players_data:
-		if players_data[pid]['alive']:
-			_client_update_player_state.rpc_id(pid, state)
+	for pid in player_list.get_alive_pids():
+		_client_update_player_state.rpc_id(pid, state)
 
 @rpc("any_peer", "call_remote", "reliable")
 func _client_update_player_state(_state):
@@ -416,47 +371,31 @@ func _client_update_player_state(_state):
 		state = _state
 		_client_change_screen_properties()
 
-func reset_game_data():
-	game_data = {'init_budget': 0, 'voting': {}, "vote_winner": {}}
-
-func reset_player_request_vote():
-	for pid in players_data:
-		players_data[pid]['request'] = 0
-		players_data[pid]['request_result'] = 0
-		players_data[pid]['vote'] = {}
-		
 ## Подготавливает информацию обигроках к началу нового раунда
 ## Отправляет новые данные об экранах универсальную игроков
-func _server_set_requesting_state(alive_count: int):
+func _server_set_requesting_state():
 	clock = wait_time
-	reset_player_request_vote()
-	reset_game_data()
+	player_list.reset_request_vote()
+	player_list.reset_game_data()
+	player_list.set_init_budget()
 	
-	var budget := alive_count * player_cost
-	game_data['init_budget'] = budget
-	var init_screen_data = {
-		'label_state': "Бюджет: %d" % budget,
-		'h_slider_max': budget,
-		'h_slider_value': player_cost,
-		'next_button': "Запросить",
-		'slider_editable': true,
-		'message_label': "Ваш запрос: %d" % player_cost,
-	}
-	_server_update_alive_client_screen_data(init_screen_data)
+	for pid in player_list.get_alive_pids():
+		var init_screen_data = player_list.get_state_screen_data(pid, "set_request")
+		_client_change_screen_data.rpc_id(pid, init_screen_data)
 
 ## Добавляет информацию об запросе игрока на получение баллов
 func _server_update_game_on_requesting(pid: int, player_data: Dictionary):
-	players_data[pid]['ready'] = true
-	players_data[pid]["request"] = player_data["h_slider_value"]
+	player_list.set_ready(pid, true)
+	player_list.set_request(pid, player_data["h_slider_value"])
 
-	if check_all_alive_ready():
-		calc_request_result()
+	if player_list.check_all_alive_ready():
+		player_list.calc_request_result()
 		_server_set_state_aside(VOTING)
 
-func _client_update_submit_screen_on_requesting(player_data):
+func _client_update_submit_screen_on_requesting():
 	var update_data = {
 		'slider_editable': false,
-		'next_button': "Ваш запрос: %d" % player_data['request'],
+		'next_button': "Вы сделали запрос",
 		'next_button_disabled': true,
 	}
 	_client_change_screen_data(update_data)
@@ -471,84 +410,31 @@ func _on_h_slider_value_changed(value: float) -> void:
 			_on_change_voting(voting_container.get_choose())
 	_client_change_screen_data(update_date)
 
-func calc_request_result():
-	var init_budget = game_data['init_budget']
-	var sum_request := 0
-	var power_sum_request := 0.
-	var inequality_degree := .5 + 2*randf()
-	for pid in players_data:
-		sum_request += players_data[pid]['request']
-		power_sum_request += players_data[pid]['request'] ** inequality_degree
-	
-	var shrink_budget = min(init_budget, 2*init_budget - sum_request)
-	shrink_budget = max(player_cost, abs(shrink_budget)) * (1 if shrink_budget > 0 else -1)
-	for pid in players_data:
-		if shrink_budget == init_budget:
-			players_data[pid]['request_result'] = players_data[pid]['request']
-		else:
-			players_data[pid]['request_result'] = round((players_data[pid]['request']**inequality_degree) / power_sum_request * shrink_budget)
-		players_data[pid]['balance'] += players_data[pid]['request_result']
-	
-	if shrink_budget <= 0:
-		var max_minus := 0
-		for pid in players_data:
-			if max_minus > players_data[pid]['request_result']:
-				max_minus = players_data[pid]['request_result']
-		max_minus = 1 + abs(max_minus)
-		game_history += "субсидия равна: %d\n" % max_minus
-		
-		for pid in players_data:
-			players_data[pid]['balance'] += max_minus
-	
 func _server_set_voting_state():
 	clock = wait_time
-	for pid in players_data:
-		if !players_data[pid]['alive']:
-			continue
-		var voting_vars = []
-		for sub_pid in players_data:
-			if sub_pid != pid and players_data[sub_pid]['alive']:
-				voting_vars.append(sub_pid)
-		var new_player_date = {
-			"my_result":  "Запросили: " + str(int(players_data[pid]['request'])) + "\nПолучили: " + str(int(players_data[pid]['request_result'])), 
-			"label_state": "Выберите за кого голосовать",
-			"my_score": str(int(players_data[pid]['balance'])),
-			"next_button": "Пропустить\nголосование",
-			"slider_editable": true,
-			"h_slider_max": players_data[pid]['balance'],
-			"h_slider_value": 0,
-			"voting_vars": voting_vars,
-		} 
-		players_data[pid]['request'] = 0
-		players_data[pid]['request_result'] = 0
-		players_data[pid]['vote'] = {}
+	for pid in player_list.get_alive_pids():
+		var new_player_date = player_list.get_state_screen_data(pid, "set_voting")
+		player_list.reset_request_vote()
 		_client_change_screen_data.rpc_id(pid, new_player_date)
-	game_data["voting"] = {}
-	game_data["vote_winner"] = {}
-	
+	player_list.reset_game_data()
+
 func _server_update_game_on_voting(pid: int, player_data: Dictionary) -> void:
 	var vote_pid = player_data['vote_pid'] 
 	var vote_value = player_data["h_slider_value"]
 	if vote_pid > 0 and vote_value > 0:
-		players_data[pid]['vote'] = {players_data[vote_pid]['name']: vote_value}
-		players_data[pid]['balance'] -= vote_value 
-		if vote_pid in game_data["voting"]:
-			game_data["voting"][vote_pid] += vote_value 
-		else:
-			game_data["voting"][vote_pid] = vote_value 
+		player_list.set_vote(pid, vote_pid, vote_value)
 	else:
-		players_data[pid]['vote'] = {}
-	players_data[pid]['ready'] = true
-	if check_all_alive_ready():
-		calc_voting_result()
+		player_list.reset_vote(pid)
+	player_list.set_ready(pid, true)
+	if player_list.check_all_alive_ready():
+		player_list.calc_voting_result()
 		_server_set_state_aside(ELIMINATING)
 		
-func _client_update_submit_screen_on_voting(player_data):
+func _client_update_submit_screen_on_voting():
 	var update_data = {
 		"next_button": "Вы проголосовали",
 		"next_button_disabled": true,
 		"slider_editable": false,
-		"my_score": str(int(player_data['balance'])),
 	}
 	_client_change_screen_data(update_data)
 
@@ -559,50 +445,16 @@ func _on_change_voting(pid:int):
 		next_button.text = "Проголосовать"
 	else:
 		next_button.text = "Пропустить\nголосование"
-
-func calc_voting_result():
-	var max_vote := 0
-	var max_pid := 0
-	var selected_pid := []
-	for pid in game_data['voting']:
-		if max_vote < game_data['voting'][pid]:
-			max_pid = pid
-			max_vote = game_data['voting'][pid]
 	
-	if max_pid > 0:
-		for pid in players_data:
-			if pid not in game_data['voting']:
-				continue
-			if players_data[pid]['alive'] and game_data['voting'][pid] >= max_vote:
-				selected_pid.append(pid)
-	else:
-		var max_balance := 0
-		if max_pid <= 0:
-			for pid in players_data:
-				if players_data[pid]['alive'] and players_data[pid]['balance'] > max_balance:
-					max_balance = players_data[pid]['balance']
-					max_pid = pid
-			if max_pid:
-				selected_pid = [max_pid]
-	game_data['vote_winner'] = []
-	for pid in selected_pid:
-		var winner := {
-			'pid': pid,
-			'balance': players_data[pid]['balance'],
-			'name': players_data[pid]['name'],
-		}
-		game_data['vote_winner'].append(winner)
-		
 func _server_set_eliminating_state():
-	if game_data['vote_winner']:
+	if player_list.vote_winner:
 		var label_state_str := "" 
 		var message_label_str := "" 
 		var voting_vars_array := []
-		var alive_count = get_alive_count() 
-		for acc_data in game_data['vote_winner']:
+		var alive_count = player_list.get_alive_count() 
+		for acc_data in player_list.vote_winner:
 			var pid = acc_data['pid']
-			players_data[pid]['alive'] = false
-			players_data[pid]['place'] = alive_count
+			player_list.kill(pid, alive_count)
 			_client_make_gameover.rpc_id(pid)
 			voting_vars_array.append(pid)
 			label_state_str += "Игру покидает: %s\n" % acc_data['name']
@@ -614,10 +466,12 @@ func _server_set_eliminating_state():
 			'clear_selaction': true,
 		}
 		_server_update_all_client_screen_data(update_data)
+		_server_sync_all_player()
 		_server_set_state_aside(REQUESTING)
 	else:
 		push_warning("vote winner didn't calc")
-		calc_voting_result()
+		player_list.calc_voting_result(true)
+		_server_set_state_aside(ELIMINATING)
 
 @rpc("any_peer", "call_remote", "reliable")
 func _client_make_gameover() -> void:
@@ -631,24 +485,17 @@ func _client_make_gameover() -> void:
 	voting_container.visible = true
 
 func send_dead_log():
-	var log_message := '~~~~~~~~~~~~~~~~{0}~~~~~~~~~~~~~~~\n'.format([get_alive_count()])
-	var alive_acc = []
-	for pid in players_data:
-		if players_data[pid]['alive']:
-			alive_acc.append(pid)
-			var pid_data = players_data[pid] 
-			if state == REQUESTING:
-				log_message += "{0} запросил {1} получил {2} баланс равен {3}\n".format([pid_data['name'], int(pid_data['request']), int(pid_data['request_result']), int(pid_data['balance'])])
-			if state == VOTING:
-				log_message += "{0} проголосовал {1}\n".format([pid_data['name'], str(pid_data['vote'])])
-	game_history += log_message
+	var log_message := '~~~~~~~~~~~~~~~~{0}~~~~~~~~~~~~~~~\n'.format([player_list.get_alive_count()])
+	var alive_acc = player_list.get_alive_pids()
+	for pid in alive_acc:
+		log_message += player_list.get_state_log(pid, state)
+	player_list.game_history += log_message
 	var update_date = {
-		'history_log': game_history,
+		'history_log': player_list.game_history,
 		"voting_vars": alive_acc,
 	}
-	for pid in players_data:
-		if !players_data[pid]['alive']:
-			_client_change_screen_data.rpc_id(pid, update_date)
+	for pid in player_list.get_dead_pids():
+		_client_change_screen_data.rpc_id(pid, update_date)
 
 func _server_set_state_aside(state_):
 	if state_ != state:
@@ -661,32 +508,28 @@ func _on_state_timer_timeout() -> void:
 	_server_change_state()
 
 func _server_set_gameend_state() -> void:
-	var win_pid: int 
-	var last_message = ''
-	for pid in players_data:
-		if players_data[pid]['alive']:
-			win_pid = pid
-			players_data[pid]['place'] = 1
-			
-	for i in range(1, 1+start_player_count):
-		for pid in players_data:
-			if players_data[pid]['place'] == i:
-				last_message += "#%d: %s\n" % [i, players_data[pid]['name']]
-			
+	var win_pids := [] 
+	var win_message = ""
+	for pid in player_list.get_alive_pids():
+		win_pids.append(pid)
+		player_list.set_place(pid, 1)
+		win_message += "Выиграл %s: %d\n" % [player_list.get_player_name(pid), player_list.get_player_balance(pid)]
+	var last_message = player_list.get_last_message()
+	
 	var update_data = {
 		'message_label': last_message,
 		'clear_selaction': true,
-		'history_log': game_history,
+		'history_log': player_list.game_history,
 	}
-	if !win_pid:
+	if !win_pids:
 		update_data['label_state'] = "Все проиграли"
 		update_data['voting_vars'] = []
 	else:
-		update_data['label_state'] = "Выиграл %s: %d" % [players_data[win_pid]['name'], players_data[win_pid]['balance']]
-		update_data['voting_vars'] = [win_pid]
+		update_data['label_state'] = win_message
+		update_data['voting_vars'] = win_pids
 		
 	_server_update_all_client_screen_data(update_data)
-	
+
 func print_time():
 	var time_dict = Time.get_time_dict_from_system()
 	print("%02d:%02d:%02d" % [time_dict.hour, time_dict.minute, time_dict.second])
@@ -695,20 +538,18 @@ func print_time():
 func _client_sync_clock(server_clock):
 	clock = server_clock
 	update_clock()
-	print("clock updated")
+	print('clock updated')
 	
 func _on_ping_timer_timeout() -> void:
 	if multiplayer.is_server():
 		print_time()
-		for pid in players_data:
-			if players_data[pid]['alive']:
-				_client_sync_clock.rpc_id(pid, clock)
-		return  
+		for pid in player_list.get_alive_pids():
+			_client_sync_clock.rpc_id(pid, clock)
 	if multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		keep_alive_dummy.rpc_id(1, multiplayer.get_unique_id()) 
 
 @rpc("any_peer", "reliable")
 func keep_alive_dummy(pid) -> void:
-	if pid in players_data:
-		print("[%s]\t%d" % [players_data[pid]['name'], pid])
+	if player_list.is_exist(pid):
+		print("[%s]\t%d" % [player_list.get_player_name(pid), pid])
 	
