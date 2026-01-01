@@ -534,10 +534,17 @@ func print_time():
 	var time_dict = Time.get_time_dict_from_system()
 	print("%02d:%02d:%02d" % [time_dict.hour, time_dict.minute, time_dict.second])
 
+@rpc("any_peer", "call_remote", "reliable")
+func _client_sync_clock(server_clock):
+	clock = server_clock
+	update_clock()
+	print('clock updated')
+	
 func _on_ping_timer_timeout() -> void:
 	if multiplayer.is_server():
 		print_time()
-		return  
+		for pid in player_list.get_alive_pids():
+			_client_sync_clock.rpc_id(pid, clock)
 	if multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		keep_alive_dummy.rpc_id(1, multiplayer.get_unique_id()) 
 
