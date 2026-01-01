@@ -18,7 +18,7 @@ func __test():
 		{"pid": 23, "name": "y", "ava_id": 7},
 	]
 	add_new_members(new_accs)
-
+	
 func add_new_members(data_list: Array):
 	var childrens = get_children()
 	for data in data_list:
