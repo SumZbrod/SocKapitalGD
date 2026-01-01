@@ -1,0 +1,18 @@
+[gd_scene load_steps=2 format=3 uid="uid://cnomp33er74cu"]
+
+[ext_resource type="Texture2D" uid="uid://dgnpah8j6rlri" path="res://assets/img/roles.png" id="1_6lmxq"]
+
+[node name="NinePatchRect" type="NinePatchRect"]
+offset_right = 40.0
+offset_bottom = 40.0
+texture = ExtResource("1_6lmxq")
+region_rect = Rect2(0, 0, 512, 512)
+
+[node name="Button" type="Button" parent="."]
+modulate = Color(1, 1, 1, 0)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2

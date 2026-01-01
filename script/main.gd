@@ -13,7 +13,6 @@ extends Control
 @onready var state_timer: Timer = $StateTimer
 var new_state
 var peer := WebSocketMultiplayerPeer.new()
-const account_scn = preload("res://scene/account.tscn")
 var my_player_account: PlayerClass
 
 enum {

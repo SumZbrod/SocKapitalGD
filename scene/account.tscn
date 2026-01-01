@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3 uid="uid://bcmreqckndjor"]
+[gd_scene load_steps=5 format=3 uid="uid://bcmreqckndjor"]
 
-[ext_resource type="Script" uid="uid://d3yfi7x88gfjt" path="res://script/account.gd" id="1_ujsm1"]
+[ext_resource type="Script" uid="uid://cn44r4ose18uh" path="res://script/account.gd" id="1_ujsm1"]
 [ext_resource type="Material" uid="uid://2x3k2shhnrnq" path="res://shader/shaking.tres" id="2_0r524"]
 [ext_resource type="Texture2D" uid="uid://dadgywhnpctu5" path="res://assets/img/avas.png" id="3_mntt1"]
+[ext_resource type="Script" uid="uid://d3yfi7x88gfjt" path="res://script/chosing_node.gd" id="4_0r524"]
 
 [node name="Account" type="VBoxContainer"]
 anchors_preset = -1
@@ -32,6 +33,7 @@ layout_mode = 2
 size_flags_horizontal = 4
 texture = ExtResource("3_mntt1")
 region_rect = Rect2(682, 0, 341, 341)
+script = ExtResource("4_0r524")
 
 [node name="Button" type="Button" parent="NinePatchRect"]
 modulate = Color(1, 1, 1, 0)

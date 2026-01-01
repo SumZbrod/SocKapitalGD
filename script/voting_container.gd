@@ -5,7 +5,7 @@ var acc_chooses = []
 signal change_decition(pid:int)
 
 func _ready() -> void:
-	#__test()
+	__test()
 	return
 
 func __test():
