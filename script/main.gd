@@ -11,19 +11,12 @@ extends Control
 @onready var label_state: Label = $UpperBlock/LabelState
 @onready var voting_container: VotingContainerNode = $UpperBlock/VotingContainer
 @onready var state_timer: Timer = $StateTimer
+
 var new_state
 var peer := WebSocketMultiplayerPeer.new()
-const account_scn = preload("res://scene/account.tscn")
 var my_player_account: PlayerClass
 
-enum {
-	JOIN,
-	REQUESTING,
-	VOTING,
-	ELIMINATING,
-	GAMEEND,
-}
-var state := JOIN
+var state := PlayerClass.JOIN
 
 var player_list := PlayerListClass.new()
 var player_codes = {}
@@ -32,7 +25,9 @@ const PORT = 8080
 var SERVER_URL: String
 
 var clock := .0
-var wait_time := 5 * 60 #TODO
+var wait_time := 5 * 60
+
+var roles_is_setting := false
 
 func _ready() -> void:
 	if OS.has_feature("web"):
@@ -63,12 +58,14 @@ func _ready() -> void:
 	start_player_count = player_codes.size()
 	voting_container.change_decition.connect(_on_change_voting)
 	input_field.text_submitted.connect(_on_text_submitted)
-	state = JOIN
+	state = PlayerClass.JOIN
 	if OS.has_feature("dedicated_server") or "--server" in OS.get_cmdline_args():
 		start_server()
 	else:
 		start_client()
-
+	
+	add_roles_to_container()
+	
 func _process(delta):
 	if peer:
 		peer.poll()
@@ -169,7 +166,7 @@ func _on_next_button_pressed() -> void:
 func _on_text_submitted(text: String) -> void:
 	if text.strip_edges().is_empty():
 		return
-	if state != JOIN:
+	if state != PlayerClass.JOIN:
 		return
 	_server_create_new_player.rpc_id(1, multiplayer.get_unique_id(), text)
 	_on_next_button_pressed()
@@ -191,11 +188,13 @@ func _server_update_game(pid: int, player_screen_data: Dictionary) -> void:
 		push_warning("[_server_update_game] player died")
 		return
 	match state: 
-		JOIN:
+		PlayerClass.JOIN:
 			_server_update_game_on_join(pid, player_screen_data)
-		REQUESTING:
+		PlayerClass.REQUESTING:
 			_server_update_game_on_requesting(pid, player_screen_data)
-		VOTING:
+		PlayerClass.ROLING:
+			_server_update_game_on_roling(pid, player_screen_data)
+		PlayerClass.VOTING:
 			_server_update_game_on_voting(pid, player_screen_data)
 		_:
 			push_warning("[update_game] Uknown state: %s" % state)
@@ -218,19 +217,19 @@ func _server_sync_all_player():
 @rpc("any_peer", "call_remote", "reliable")
 func _client_update_submit_screen():
 	match state: 
-		JOIN:
+		PlayerClass.JOIN:
 			_client_update_submit_screen_on_join()
-		REQUESTING:
+		PlayerClass.REQUESTING:
 			_client_update_submit_screen_on_requesting()
-		VOTING:
+		PlayerClass.ROLING:
+			_client_update_submit_screen_on_roling()
+		PlayerClass.VOTING:
 			_client_update_submit_screen_on_voting()
 		_:
 			push_warning("[update_my_screen] Uknown state: %s" % state)
 
 @rpc("any_peer", "call_remote", "reliable")
 func _client_setup_account():
-	if !my_player_account:
-		push_warning("бляы ", my_player_account)
 	account.setup(my_player_account)
 
 ## Вызывается после нажатия next_button или ввода имени
@@ -250,7 +249,7 @@ func _server_update_game_on_join(pid: int, _player_screen_data:Dictionary) -> vo
 	_server_update_alive_client_screen_data(update_date)
 	# Проверка готовности к игре
 	if player_list.check_all_alive_ready() and ready_alive_players == start_player_count:
-		_server_set_state_aside(REQUESTING)
+		_server_set_state_aside(PlayerClass.REQUESTING)
 
 func _client_update_submit_screen_on_join():
 	input_field.editable = false
@@ -296,12 +295,12 @@ func _client_update_acc_info():
 func _client_change_screen_properties() -> void:
 	_client_update_acc_info()
 	match state:
-		JOIN:
+		PlayerClass.JOIN:
 			next_button.disabled = false
 			h_slider.visible = false
 			next_button.visible = false
 			account.visible = false
-		REQUESTING:
+		PlayerClass.REQUESTING:
 			clock = wait_time
 			next_button.disabled = false
 			account.visible = true
@@ -309,7 +308,7 @@ func _client_change_screen_properties() -> void:
 			h_slider.visible = true
 			input_field.visible = false
 			voting_container.visible = false
-		VOTING:
+		PlayerClass.ROLING:
 			clock = wait_time
 			next_button.disabled = false
 			next_button.visible = true
@@ -317,12 +316,20 @@ func _client_change_screen_properties() -> void:
 			account.visible = true
 			input_field.visible = false
 			h_slider.visible = true
-		ELIMINATING:
+		PlayerClass.VOTING:
+			clock = wait_time
+			next_button.disabled = false
+			next_button.visible = true
+			voting_container.visible = true
+			account.visible = true
+			input_field.visible = false
+			h_slider.visible = true
+		PlayerClass.ELIMINATING:
 			next_button.disabled = false
 			voting_container.visible = true
 			h_slider.visible = false
 			next_button.visible = false
-		GAMEEND:
+		PlayerClass.GAMEEND:
 			next_button.disabled = true
 			next_button.visible = false
 			voting_container.visible = true
@@ -343,22 +350,24 @@ func _server_change_state():
 	clock = 0
 	send_dead_log()
 	_server_sync_all_player()
-	if state == JOIN:
+	if state == PlayerClass.JOIN:
 		_server_setup_all_alive_account()
 	
 	state = new_state
 	var alive_count = player_list.get_alive_count()
 	if alive_count <= 1:
-		state = GAMEEND
+		state = PlayerClass.GAMEEND
 	player_list.set_ready(-1, false)
 	match state:
-		REQUESTING:
+		PlayerClass.REQUESTING:
 			_server_set_requesting_state()
-		VOTING:
+		PlayerClass.ROLING:
+			_server_set_roling_state()
+		PlayerClass.VOTING:
 			_server_set_voting_state()
-		ELIMINATING:
+		PlayerClass.ELIMINATING:
 			_server_set_eliminating_state()
-		GAMEEND:
+		PlayerClass.GAMEEND:
 			_server_set_gameend_state()
 		_:
 			push_warning("[_server_change_state] Uknown state: %s" % state)
@@ -393,8 +402,12 @@ func _server_update_game_on_requesting(pid: int, player_data: Dictionary):
 
 	if player_list.check_all_alive_ready():
 		player_list.calc_request_result()
-		_server_set_state_aside(VOTING)
-
+		if !roles_is_setting:
+			_server_set_state_aside(PlayerClass.ROLING)
+			roles_is_setting = true
+		else:
+			_server_set_state_aside(PlayerClass.VOTING)
+			
 func _client_update_submit_screen_on_requesting():
 	var update_data = {
 		'slider_editable': false,
@@ -406,12 +419,44 @@ func _client_update_submit_screen_on_requesting():
 func _on_h_slider_value_changed(value: float) -> void:
 	var update_date = {}
 	match state:
-		REQUESTING:
+		PlayerClass.REQUESTING:
 			update_date['message_label'] = "Ваш запрос: %d" % int(value)
-		VOTING:
+		PlayerClass.ROLING:
+			update_date['message_label'] = "На аукцион вы поставили: %d" % int(value)
+			_on_change_voting(voting_container.get_choose())
+		PlayerClass.VOTING:
 			update_date['message_label'] = "На голосование вы поставили: %d" % int(value)
 			_on_change_voting(voting_container.get_choose())
 	_client_change_screen_data(update_date)
+
+
+func _server_set_roling_state():
+	clock = wait_time
+	for pid in player_list.get_alive_pids():
+		var new_player_date = player_list.get_state_screen_data(pid, "set_roling")
+		player_list.reset_request_vote()
+		_client_change_screen_data.rpc_id(pid, new_player_date)
+	player_list.reset_game_data()
+
+func _server_update_game_on_roling(pid: int, player_data: Dictionary) -> void:
+	var vote_pid = player_data['vote_pid'] 
+	var vote_value = player_data["h_slider_value"]
+	if vote_pid != 0 and vote_value > 0:
+		player_list.set_auction(pid, vote_pid, vote_value)
+	else:
+		player_list.reset_auction(pid)
+	player_list.set_ready(pid, true)
+	if player_list.check_all_alive_ready():
+		player_list.calc_auction_result()
+		_server_set_state_aside(PlayerClass.REQUESTING)
+
+func _client_update_submit_screen_on_roling():
+	var update_data = {
+		"next_button": "Ставка принята",
+		"next_button_disabled": true,
+		"slider_editable": false,
+	}
+	_client_change_screen_data(update_data)
 
 func _server_set_voting_state():
 	clock = wait_time
@@ -431,8 +476,8 @@ func _server_update_game_on_voting(pid: int, player_data: Dictionary) -> void:
 	player_list.set_ready(pid, true)
 	if player_list.check_all_alive_ready():
 		player_list.calc_voting_result()
-		_server_set_state_aside(ELIMINATING)
-		
+		_server_set_state_aside(PlayerClass.ELIMINATING)
+
 func _client_update_submit_screen_on_voting():
 	var update_data = {
 		"next_button": "Вы проголосовали",
@@ -442,13 +487,18 @@ func _client_update_submit_screen_on_voting():
 	_client_change_screen_data(update_data)
 
 func _on_change_voting(pid:int):
-	if state != VOTING:
-		return
-	if pid > 0 and h_slider.value > 0:
-		next_button.text = "Проголосовать"
-	else:
-		next_button.text = "Пропустить\nголосование"
-	
+	match state:
+		PlayerClass.ROLING:
+			if pid != 0 and h_slider.value > 0:
+				next_button.text = 'Поставить на "%s"' % player_list.get_player_name(pid)
+			else:
+				next_button.text = "Пропуск"
+		PlayerClass.VOTING:
+			if pid > 0 and h_slider.value > 0:
+				next_button.text = "Проголосовать"
+			else:
+				next_button.text = "Пропустить\nголосование"
+
 func _server_set_eliminating_state():
 	if player_list.vote_winner:
 		var label_state_str := "" 
@@ -470,11 +520,11 @@ func _server_set_eliminating_state():
 		}
 		_server_update_all_client_screen_data(update_data)
 		_server_sync_all_player()
-		_server_set_state_aside(REQUESTING)
+		_server_set_state_aside(PlayerClass.REQUESTING)
 	else:
 		push_warning("vote winner didn't calc")
 		player_list.calc_voting_result(true)
-		_server_set_state_aside(ELIMINATING)
+		_server_set_state_aside(PlayerClass.ELIMINATING)
 
 @rpc("any_peer", "call_remote", "reliable")
 func _client_make_gameover() -> void:
@@ -548,7 +598,7 @@ func _on_ping_timer_timeout() -> void:
 		print_time()
 		for pid in player_list.get_alive_pids():
 			_client_sync_clock.rpc_id(pid, clock)
-	if multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+	elif multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		keep_alive_dummy.rpc_id(1, multiplayer.get_unique_id()) 
 
 @rpc("any_peer", "reliable")
@@ -556,3 +606,5 @@ func keep_alive_dummy(pid) -> void:
 	if player_list.is_exist(pid):
 		print("[%s]\t%d" % [player_list.get_player_name(pid), pid])
 	
+func add_roles_to_container() -> void:
+	voting_container.add_new_members(player_list.get_role_data_list(), false)

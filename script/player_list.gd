@@ -11,12 +11,8 @@ var start_player_count: int
 var ava_id_shift := randi() % 9
 var ava_id_step:int = [1, 2, 4, 5, 7, 8].pick_random()
 
-enum {
-	JOIN,
-	REQUESTING,
-	VOTING,
-	ELIMINATING,
-	GAMEEND,
+var role_dict = {
+	-1: PlayerClass.new(-1, "Ксива", 0),
 }
 
 func from_dict(data: Dictionary) -> PlayerClass:
@@ -91,7 +87,13 @@ func get_ava_id(pid: int) -> int:
 	return player_dict[pid].ava_id
 
 func get_player_name(pid: int) -> String:
-	return player_dict[pid].player_name
+	if pid > 0:
+		return player_dict[pid].player_name
+	for rid in role_dict:
+		if rid == pid:
+			return role_dict[rid].player_name
+	push_error("[PlayerListClass:get_player_name] unknown pid: %d" % pid)
+	return ''
 
 func get_player_balance(pid: int) -> int:
 	return player_dict[pid].balance
@@ -174,7 +176,6 @@ func calc_request_result():
 		if player_dict[pid].alive:
 			player_dict[pid].balance += subsidia
 			player_dict[pid].subsidia = subsidia
-	## TODO нету субсидии
 
 func increase_balance(pid:int, value:int) -> void:
 	if pid == -1:
@@ -211,9 +212,21 @@ func get_balance(pid: int) -> int:
 func set_init_budget() -> void:
 	init_budget = get_alive_count() * PLAYER_COST
 
+func get_role_vars():
+	return role_dict.keys()
+
 func get_state_screen_data(pid: int, state:String) -> Dictionary:
 	var data: Dictionary
 	match state:
+		"set_roling":
+			data = {
+				"label_state": "Аукцион",
+				"next_button": "Пропустить",
+				"slider_editable": true,
+				"h_slider_max": get_max_voting_value(pid),
+				"h_slider_value": 0,
+				"voting_vars": get_role_vars(),
+			} 
 		"set_request":
 			data = {
 				'label_state': "Бюджет: %d" % init_budget,
@@ -281,10 +294,24 @@ func get_state_log(pid: int, state) -> String:
 	var pid_data = player_dict[pid]
 	var res = ""
 	match state:
-		REQUESTING:
+		PlayerClass.REQUESTING:
 			pid_data = [pid_data.player_name, pid_data.request, pid_data.request_result, pid_data.balance]
 			res += "{0} запросил {1} получил {2} баланс равен {3}\n".format(pid_data)
-		VOTING:
+		PlayerClass.ROLING:
+			var vote_name_ 
+			var vote_value_
+			for k in pid_data.vote:
+				vote_name_ = role_dict[k].player_name
+				vote_value_ = pid_data.vote[k]
+			var auction_data = [pid_data.player_name, vote_value_, vote_name_]
+			if vote_name_:
+				res += "{0} поставил {1} на {2}\n".format(auction_data)
+			else:
+				res += "{0} не голосовал\n".format(auction_data)
+			if pid_data.rid:
+				auction_data = [pid_data.player_name, role_dict[pid_data.rid].player_name]
+				res += "{0} получил {1}\n".format(auction_data)
+		PlayerClass.VOTING:
 			var vote_name_ 
 			var vote_value_
 			for k in pid_data.vote:
@@ -325,5 +352,38 @@ func _to_string():
 func get_dict(pid:int) -> Dictionary:
 	return player_dict[pid].to_dict()
 
-func get_acc_info(pid:int, state) -> Dictionary:
-	return player_dict[pid].get_acc_info(state)
+func get_role_data_list() -> Array:
+	var data_list := []
+	for rid in role_dict:
+		var new_role = {
+			'pid' = rid,
+			'ava_id' = role_dict[rid].ava_id,
+			'name' = role_dict[rid].player_name,
+		}
+		data_list.append(new_role)
+	return data_list
+	
+func set_auction(pid, vote_pid, vote_value):
+	player_dict[pid].auction = {vote_pid: vote_value}
+
+func reset_auction(pid):
+	player_dict[pid].auction = {}
+
+func calc_auction_result():
+	var auction_result = {} # {rid: {pid, value}}
+	for rid in role_dict:
+		for pid in player_dict:
+			var auction = player_dict[pid].auction
+			if rid in auction:
+				if rid not in auction_result:
+					auction_result[rid] = {
+						'value': auction[rid],
+						'pid': pid
+					}
+				elif auction_result[rid]['value'] < auction[rid]:
+					auction_result[rid]['value'] = auction[rid]
+					auction_result[rid]['pid'] = pid
+
+	for rid in auction_result:
+		player_dict[auction_result[rid]['pid']].rid = rid
+		player_dict[auction_result[rid]['pid']].role_name = role_dict[rid].player_name

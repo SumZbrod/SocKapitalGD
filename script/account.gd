@@ -4,6 +4,8 @@ class_name AccountNode extends VBoxContainer
 @onready var nine_patch_rect: NinePatchRect = $NinePatchRect
 @onready var score_label: Label = $ScoreLabel
 @onready var message_label: Label = $MessageLabel
+@onready var role_label: Label = $RoleLabel
+
 signal change_select(value: bool)
 
 var button_pressed: bool
@@ -34,6 +36,8 @@ func update(data):
 				score_label.text = str(data[key])
 			"message":
 				message_label.text = str(data[key])
+			"role":
+				role_label.text = str(data[key])
 
 func make_visible_personal_data():
 	score_label.visible = true

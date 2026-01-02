@@ -25,6 +25,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_itxqv")
+start_player_count = 2
 
 [node name="UpperBlock" type="VBoxContainer" parent="."]
 z_index = 1
