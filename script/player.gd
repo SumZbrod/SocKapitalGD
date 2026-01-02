@@ -96,7 +96,10 @@ func get_acc_info(state) -> Dictionary:
 	match state:
 		VOTING, ROLING:
 			res['name'] = player_name
-			res['message'] = "Запросил: %d\n Получил: %d" % [request, request_result]
+			if rid != -1:
+				res['message'] = "Запросил: %d\n Получил: %d" % [request, request_result]
+			else:
+				res['message'] = "Получил: %d" % request_result
 			if subsidia:
 				res['message'] += '\n Субсидия: %d' % subsidia
 		ROLE_RESULT:

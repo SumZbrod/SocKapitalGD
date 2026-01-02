@@ -266,7 +266,8 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 					"h_slider_max": get_max_voting_value(pid),
 					"h_slider_value": 0,
 					"voting_vars": get_voiting_vars_for(pid),
-					'message_label': "Отдапнные голоса пойдут в защиту игрока",
+					'message_label': "Отданные голоса\nпойдут в защиту игрока",
+					'clear_selaction': true,
 				} 
 			else:
 				data = {
@@ -276,6 +277,7 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 					"h_slider_max": get_max_voting_value(pid),
 					"h_slider_value": 0,
 					"voting_vars": get_voiting_vars_for(pid),
+					'clear_selaction': true,
 				} 
 	return data
 
@@ -337,10 +339,11 @@ func get_state_log(pid: int, state) -> String:
 			pid_data = [pid_data.player_name, pid_data.request, pid_data.request_result, pid_data.balance]
 			res += "{0} запросил {1} получил {2} баланс равен {3}\n".format(pid_data)
 		PlayerClass.ROLING:
-			var auction_data = [pid_data.player_name, role_dict[pid_data.rid].player_name]
 			if pid_data.rid:
+				var auction_data = [pid_data.player_name, role_dict[pid_data.rid].player_name]
 				res += "{0} получил {1}\n".format(auction_data)
 			else:
+				var auction_data = [pid_data.player_name]
 				res += "{0} пропустил аукцион\n".format(auction_data)
 		PlayerClass.VOTING:
 			var vote_name_ 
@@ -348,11 +351,14 @@ func get_state_log(pid: int, state) -> String:
 			for k in pid_data.vote:
 				vote_name_ = player_dict[k].player_name
 				vote_value_ = pid_data.vote[k]
-			pid_data = [pid_data.player_name, vote_value_, vote_name_]
 			if vote_name_:
-				res += "{0} поставил {1} против {2}\n".format(pid_data)
+				pid_data = [pid_data.player_name, int(vote_value_), vote_name_]
+				if player_dict[pid].rid == -1:
+					res += "{0} поставил -{1} в защиту {2}\n".format(pid_data)
+				else:
+					res += "{0} поставил {1} против {2}\n".format(pid_data)
 			else:
-				res += "{0} не голосовал\n".format(pid_data)
+				res += "%s не голосовал\n" % player_dict[pid].player_name
 	return res
 
 func set_place(pid:int, place:int):

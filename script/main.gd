@@ -309,9 +309,12 @@ func _client_change_screen_properties() -> void:
 			next_button.disabled = false
 			account.visible = true
 			next_button.visible = true
-			h_slider.visible = true
 			input_field.visible = false
 			voting_container.visible = false
+			if my_player_account.rid == -1:
+				h_slider.visible = false
+			else:
+				h_slider.visible = true
 		PlayerClass.ROLING:
 			clock = wait_time
 			next_button.disabled = false
@@ -428,6 +431,8 @@ func _client_update_submit_screen_on_requesting():
 		'next_button': "Вы сделали запрос",
 		'next_button_disabled': true,
 	}
+	if my_player_account.rid == -1:
+		update_data['next_button'] = "Ожидайте"
 	_client_change_screen_data(update_data)
 
 func _on_h_slider_value_changed(value: float) -> void:
@@ -488,13 +493,13 @@ func _client_update_submit_screen_on_role_result():
 		'next_button_disabled': true,
 	}
 	_client_change_screen_data(update_data)
-	
+
 func _server_set_voting_state():
 	clock = wait_time
 	for pid in player_list.get_alive_pids():
 		var new_player_date = player_list.get_state_screen_data(pid, "set_voting")
-		player_list.reset_request_vote()
 		_client_change_screen_data.rpc_id(pid, new_player_date)
+	player_list.reset_request_vote()
 	player_list.reset_game_data()
 
 func _server_update_game_on_voting(pid: int, player_data: Dictionary) -> void:
@@ -518,6 +523,7 @@ func _client_update_submit_screen_on_voting():
 	_client_change_screen_data(update_data)
 
 func _on_change_voting(pid:int):
+	print("[main:_on_change_voting] pid ", pid)
 	match state:
 		PlayerClass.ROLING:
 			if pid != 0 and h_slider.value > 0:
@@ -620,9 +626,10 @@ func print_time():
 
 @rpc("any_peer", "call_remote", "reliable")
 func _client_sync_clock(server_clock):
-	clock = server_clock
-	update_clock()
-	print('clock updated')
+	if clock > 0:
+		clock = server_clock
+		update_clock()
+		print('clock updated')
 	
 func _on_ping_timer_timeout() -> void:
 	if multiplayer.is_server():
