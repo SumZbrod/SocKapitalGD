@@ -155,7 +155,9 @@ func get_request(pid: int, power:=1.) -> float:
 func set_request_result(shrink_budget, power):
 	var power_sum := get_request(-1, power)
 	for pid in player_dict:
-		if shrink_budget == init_budget:
+		if player_dict[pid].rid == -1:
+			player_dict[pid].request_result = get_fix_earn()
+		elif shrink_budget == init_budget:
 			player_dict[pid].request_result = player_dict[pid].request
 		else:
 			player_dict[pid].request_result = int((float(player_dict[pid].request)**power) / float(power_sum) * shrink_budget)
@@ -192,7 +194,6 @@ func get_subsidia() -> int:
 				max_minus = player_dict[pid].request_result
 	return abs(max_minus)
 	
-	
 func get_voiting_vars_for(pid:int) -> Array:
 	var voting_vars = []
 	for sub_pid in player_dict:
@@ -215,6 +216,10 @@ func set_init_budget() -> void:
 func get_role_vars():
 	return role_dict.keys()
 
+func get_fix_earn() -> int:
+	@warning_ignore("integer_division")
+	return PLAYER_COST / get_alive_count()
+
 func get_state_screen_data(pid: int, state:String) -> Dictionary:
 	var data: Dictionary
 	match state:
@@ -236,32 +241,57 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 				"voting_vars": [],
 			}
 		"set_request":
-			data = {
-				'label_state': "Бюджет: %d" % init_budget,
-				'h_slider_max': init_budget,
-				'h_slider_value': PLAYER_COST,
-				'next_button': "Запросить",
-				'slider_editable': true,
-				'message_label': "Ваш запрос: %d" % PLAYER_COST,
-			}
+			if player_dict[pid].rid == -1:
+				data = {
+					'label_state': "Ваша зарплата: %d" % get_fix_earn(),
+					'next_button': "Пропуск",
+					'slider_editable': false,
+					'message_label': "",
+				}
+			else:
+				data = {
+					'label_state': "Бюджет: %d" % init_budget,
+					'h_slider_max': init_budget,
+					'h_slider_value': PLAYER_COST,
+					'next_button': "Запросить",
+					'slider_editable': true,
+					'message_label': "Ваш запрос: %d" % PLAYER_COST,
+				}
 		"set_voting":
-			data = {
-				"label_state": "Выберите за кого голосовать",
-				"next_button": "Пропустить\nголосование",
-				"slider_editable": true,
-				"h_slider_max": get_max_voting_value(pid),
-				"h_slider_value": 0,
-				"voting_vars": get_voiting_vars_for(pid),
-			} 
+			if player_dict[pid].rid == -1:
+				data = {
+					"label_state": "Выберите кого крышивать",
+					"next_button": "Пропустить\nголосование",
+					"slider_editable": true,
+					"h_slider_max": get_max_voting_value(pid),
+					"h_slider_value": 0,
+					"voting_vars": get_voiting_vars_for(pid),
+					'message_label': "Отдапнные голоса пойдут в защиту игрока",
+				} 
+			else:
+				data = {
+					"label_state": "Выберите за кого голосовать",
+					"next_button": "Пропустить\nголосование",
+					"slider_editable": true,
+					"h_slider_max": get_max_voting_value(pid),
+					"h_slider_value": 0,
+					"voting_vars": get_voiting_vars_for(pid),
+				} 
 	return data
+
+func get_vote_value_sign(pid, _vote_pid) -> int:
+	if player_dict[pid].rid == -1:
+		return -1
+	return 1
 
 func set_vote(pid, vote_pid, value) -> void:
 	player_dict[pid].vote = {vote_pid: value}
 	player_dict[pid].balance -= value 
+	var value_sign := get_vote_value_sign(pid, vote_pid)
 	if vote_pid in voting_dict:
-		voting_dict[vote_pid] += value 
+		voting_dict[vote_pid] += value * value_sign
 	else:
-		voting_dict[vote_pid] = value 
+		voting_dict[vote_pid] = value * value_sign
 
 func get_first_most_richer_player() -> int:
 	var max_balance := 0
@@ -273,7 +303,7 @@ func get_first_most_richer_player() -> int:
 	return max_pid
 
 func calc_voting_result(exaption_enable=false):
-	var max_vote := 0
+	var max_vote := -INF
 	var max_pid := 0
 	var selected_pid := []
 	for pid in voting_dict:
@@ -287,6 +317,7 @@ func calc_voting_result(exaption_enable=false):
 				selected_pid.append(pid)
 	else:
 		selected_pid = [get_first_most_richer_player()]
+	print("[PlayerList:calc_voting_result] voting_dict ", voting_dict)
 	vote_winner = []
 	for pid in selected_pid:
 		var winner := {
@@ -306,19 +337,11 @@ func get_state_log(pid: int, state) -> String:
 			pid_data = [pid_data.player_name, pid_data.request, pid_data.request_result, pid_data.balance]
 			res += "{0} запросил {1} получил {2} баланс равен {3}\n".format(pid_data)
 		PlayerClass.ROLING:
-			var vote_name_ 
-			var vote_value_
-			for k in pid_data.vote:
-				vote_name_ = role_dict[k].player_name
-				vote_value_ = pid_data.vote[k]
-			var auction_data = [pid_data.player_name, vote_value_, vote_name_]
-			if vote_name_:
-				res += "{0} поставил {1} на {2}\n".format(auction_data)
-			else:
-				res += "{0} не голосовал\n".format(auction_data)
+			var auction_data = [pid_data.player_name, role_dict[pid_data.rid].player_name]
 			if pid_data.rid:
-				auction_data = [pid_data.player_name, role_dict[pid_data.rid].player_name]
 				res += "{0} получил {1}\n".format(auction_data)
+			else:
+				res += "{0} пропустил аукцион\n".format(auction_data)
 		PlayerClass.VOTING:
 			var vote_name_ 
 			var vote_value_
@@ -373,6 +396,7 @@ func get_role_data_list() -> Array:
 	
 func set_auction(pid, vote_pid, vote_value):
 	player_dict[pid].auction = {vote_pid: vote_value}
+	player_dict[pid].balance -= int(vote_value)
 
 func reset_auction(pid):
 	player_dict[pid].auction = {}
