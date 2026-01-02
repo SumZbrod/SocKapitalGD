@@ -17,6 +17,7 @@ var role_name: String
 enum {
 	JOIN,
 	ROLING,
+	ROLE_RESULT,
 	REQUESTING,
 	VOTING,
 	ELIMINATING,
@@ -98,9 +99,16 @@ func get_acc_info(state) -> Dictionary:
 			res['message'] = "Запросил: %d\n Получил: %d" % [request, request_result]
 			if subsidia:
 				res['message'] += '\n Субсидия: %d' % subsidia
-	if rid != 0:
-		res['role'] = role_name
+		ROLE_RESULT:
+			if rid != 0:
+				res['role'] = role_name
 	return res
 
 func _to_string() -> String:
 	return str(to_dict())
+
+func get_palyer_role_result_message() -> String:
+	if rid == 0:
+		return "Вы ни чего не получили"
+	else:
+		return 'Вы получили «%s»' % role_name

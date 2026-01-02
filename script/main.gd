@@ -194,6 +194,8 @@ func _server_update_game(pid: int, player_screen_data: Dictionary) -> void:
 			_server_update_game_on_requesting(pid, player_screen_data)
 		PlayerClass.ROLING:
 			_server_update_game_on_roling(pid, player_screen_data)
+		PlayerClass.ROLE_RESULT:
+			_server_update_game_on_role_result(pid, player_screen_data)
 		PlayerClass.VOTING:
 			_server_update_game_on_voting(pid, player_screen_data)
 		_:
@@ -223,6 +225,8 @@ func _client_update_submit_screen():
 			_client_update_submit_screen_on_requesting()
 		PlayerClass.ROLING:
 			_client_update_submit_screen_on_roling()
+		PlayerClass.ROLE_RESULT:
+			_client_update_submit_screen_on_role_result()
 		PlayerClass.VOTING:
 			_client_update_submit_screen_on_voting()
 		_:
@@ -316,6 +320,14 @@ func _client_change_screen_properties() -> void:
 			account.visible = true
 			input_field.visible = false
 			h_slider.visible = true
+		PlayerClass.ROLE_RESULT:
+			clock = wait_time
+			next_button.disabled = false
+			next_button.visible = true
+			voting_container.visible = true
+			account.visible = true
+			input_field.visible = false
+			h_slider.visible = false
 		PlayerClass.VOTING:
 			clock = wait_time
 			next_button.disabled = false
@@ -363,6 +375,8 @@ func _server_change_state():
 			_server_set_requesting_state()
 		PlayerClass.ROLING:
 			_server_set_roling_state()
+		PlayerClass.ROLE_RESULT:
+			_server_set_role_result_state()
 		PlayerClass.VOTING:
 			_server_set_voting_state()
 		PlayerClass.ELIMINATING:
@@ -429,15 +443,6 @@ func _on_h_slider_value_changed(value: float) -> void:
 			_on_change_voting(voting_container.get_choose())
 	_client_change_screen_data(update_date)
 
-
-func _server_set_roling_state():
-	clock = wait_time
-	for pid in player_list.get_alive_pids():
-		var new_player_date = player_list.get_state_screen_data(pid, "set_roling")
-		player_list.reset_request_vote()
-		_client_change_screen_data.rpc_id(pid, new_player_date)
-	player_list.reset_game_data()
-
 func _server_update_game_on_roling(pid: int, player_data: Dictionary) -> void:
 	var vote_pid = player_data['vote_pid'] 
 	var vote_value = player_data["h_slider_value"]
@@ -448,7 +453,15 @@ func _server_update_game_on_roling(pid: int, player_data: Dictionary) -> void:
 	player_list.set_ready(pid, true)
 	if player_list.check_all_alive_ready():
 		player_list.calc_auction_result()
-		_server_set_state_aside(PlayerClass.REQUESTING)
+		_server_set_state_aside(PlayerClass.ROLE_RESULT)
+
+func _server_set_roling_state():
+	clock = wait_time
+	for pid in player_list.get_alive_pids():
+		var new_player_date = player_list.get_state_screen_data(pid, "set_roling")
+		_client_change_screen_data.rpc_id(pid, new_player_date)
+	player_list.reset_request_vote()
+	player_list.reset_game_data()
 
 func _client_update_submit_screen_on_roling():
 	var update_data = {
@@ -458,6 +471,24 @@ func _client_update_submit_screen_on_roling():
 	}
 	_client_change_screen_data(update_data)
 
+func _server_set_role_result_state():
+	clock = wait_time
+	for pid in player_list.get_alive_pids():
+		var new_player_date = player_list.get_state_screen_data(pid, "set_role_result")
+		_client_change_screen_data.rpc_id(pid, new_player_date)
+	player_list.reset_game_data()
+
+func _server_update_game_on_role_result(pid: int, _player_data: Dictionary) -> void:
+	player_list.set_ready(pid, true)
+	if player_list.check_all_alive_ready():
+		_server_set_state_aside(PlayerClass.REQUESTING)
+
+func _client_update_submit_screen_on_role_result():
+	var update_data = {
+		'next_button_disabled': true,
+	}
+	_client_change_screen_data(update_data)
+	
 func _server_set_voting_state():
 	clock = wait_time
 	for pid in player_list.get_alive_pids():
@@ -490,7 +521,7 @@ func _on_change_voting(pid:int):
 	match state:
 		PlayerClass.ROLING:
 			if pid != 0 and h_slider.value > 0:
-				next_button.text = 'Поставить на "%s"' % player_list.get_player_name(pid)
+				next_button.text = 'Поставить на «%s»' % player_list.get_player_name(pid)
 			else:
 				next_button.text = "Пропуск"
 		PlayerClass.VOTING:

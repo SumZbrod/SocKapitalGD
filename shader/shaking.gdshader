@@ -14,7 +14,7 @@ void vertex() {
 	    local_pos.y += sin(TIME + world_pos_xy.x-local_pos.x*.5) * 5.;
 	}
 	else if (mode==1) {
-		float mag = (1.+saw(TIME)*.05);
+		float mag = (1.+saw(TIME*2.)*.1);
 		local_pos = mag*(local_pos -64.)+64.;
 	}
 	VERTEX = local_pos;

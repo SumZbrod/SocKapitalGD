@@ -227,6 +227,14 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 				"h_slider_value": 0,
 				"voting_vars": get_role_vars(),
 			} 
+		"set_role_result":
+			data = {
+				'label_state': "Результат Аукциона",
+				'next_button': "Дальше",
+				'slider_editable': false,
+				'message_label': player_dict[pid].get_palyer_role_result_message(),
+				"voting_vars": [],
+			}
 		"set_request":
 			data = {
 				'label_state': "Бюджет: %d" % init_budget,
