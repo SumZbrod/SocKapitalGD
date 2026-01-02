@@ -19,14 +19,18 @@ enum {
 	GAMEEND,
 }
 
+const ROLE_DICT = {
+	"ksiva": -1,
+}
+
 func from_dict(data: Dictionary) -> PlayerClass:
 	var new_player = PlayerClass.new(data['pid'], data['player_name'], data['ava_id'])
 	new_player.sync(data)
 	return new_player
 	
-func make_player(pid, player_name) -> void:
-	var ava_id = (ava_id_shift + ava_id_step*get_alive_count()) % 9
-	var new_player = PlayerClass.new(pid, player_name, ava_id)
+func make_player(pid, player_name, ava_id) -> void:
+	var new_player = PlayerClass.new(pid, player_name, int(ava_id))
+	ava_id = (ava_id_shift + ava_id_step*get_alive_count()) % 9
 	start_player_count += 1
 	player_dict[pid] = new_player
 	
