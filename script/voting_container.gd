@@ -19,7 +19,7 @@ func __test():
 	]
 	add_new_members(new_accs)
 	
-func add_new_members(data_list: Array):
+func add_new_members(data_list: Array, visible_mode:=true):
 	var childrens = get_children()
 	for data in data_list:
 		var skip_flag = false
@@ -30,6 +30,8 @@ func add_new_members(data_list: Array):
 			continue
 		var new_acc: AccountNode = account_scn.instantiate()
 		add_child(new_acc)
+		if !visible_mode:
+			new_acc.visible = false
 		var player = PlayerClass.new(data['pid'], data['name'], data['ava_id'])
 		new_acc.setup(player)
 		new_acc.change_select.connect(_on_chose_acc)

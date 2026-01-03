@@ -25,6 +25,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_itxqv")
+start_player_count = 3
 
 [node name="UpperBlock" type="VBoxContainer" parent="."]
 z_index = 1
@@ -43,6 +44,7 @@ layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 32
 text = "Soc-Kapital"
+horizontal_alignment = 1
 
 [node name="LabelClock" type="Label" parent="UpperBlock"]
 layout_mode = 2
@@ -162,7 +164,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="PingTimer" type="Timer" parent="."]
-wait_time = 10.0
+wait_time = 60.0
 autostart = true
 
 [connection signal="value_changed" from="VBox/HSlider" to="." method="_on_h_slider_value_changed"]

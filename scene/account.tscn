@@ -49,8 +49,16 @@ theme_override_font_sizes/font_size = 20
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="RoleLabel" type="Label" parent="."]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="MessageLabel" type="Label" parent="."]
 layout_mode = 2
+size_flags_horizontal = 4
 
 [connection signal="mouse_entered" from="NinePatchRect/Button" to="." method="_on_button_mouse_entered"]
 [connection signal="mouse_exited" from="NinePatchRect/Button" to="." method="_on_button_mouse_exited"]
