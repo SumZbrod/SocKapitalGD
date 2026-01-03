@@ -103,8 +103,8 @@ func get_acc_info(state) -> Dictionary:
 			if subsidia:
 				res['message'] += '\n Субсидия: %d' % subsidia
 		ROLE_RESULT:
-			if rid != 0:
-				res['role'] = role_name
+			res['role'] = role_name
+			
 	return res
 
 func _to_string() -> String:

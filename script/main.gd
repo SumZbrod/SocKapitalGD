@@ -369,9 +369,9 @@ func _server_change_state():
 		_server_setup_all_alive_account()
 	
 	state = new_state
-	var alive_count = player_list.get_alive_count()
-	if alive_count <= 1:
+	if player_list.is_gameend():
 		state = PlayerClass.GAMEEND
+	
 	player_list.set_ready(-1, false)
 	match state:
 		PlayerClass.REQUESTING:
@@ -415,7 +415,10 @@ func _server_set_requesting_state():
 ## Добавляет информацию об запросе игрока на получение баллов
 func _server_update_game_on_requesting(pid: int, player_data: Dictionary):
 	player_list.set_ready(pid, true)
-	player_list.set_request(pid, player_data["h_slider_value"])
+	if player_list.is_can_make_request(pid):
+		player_list.set_request(pid, player_data["h_slider_value"])
+	else:
+		player_list.set_request(pid, 0)
 
 	if player_list.check_all_alive_ready():
 		player_list.calc_request_result()
@@ -547,7 +550,10 @@ func _server_set_eliminating_state():
 			player_list.kill(pid, alive_count)
 			_client_make_gameover.rpc_id(pid)
 			voting_vars_array.append(pid)
-			label_state_str += "Игру покидает: %s\n" % acc_data['name']
+			if player_list.get_player(pid).rid == -1:
+				label_state_str += "Игру покидает Ксива: %s\n" % acc_data['name']
+			else:
+				label_state_str += "Игру покидает: %s\n" % acc_data['name']
 			message_label_str += "У %s было на счету %d\n" % [acc_data['name'], acc_data['balance']]
 		var update_data = {
 			'label_state':  label_state_str,
@@ -629,8 +635,7 @@ func _client_sync_clock(server_clock):
 	if clock > 0:
 		clock = server_clock
 		update_clock()
-		print('clock updated')
-	
+
 func _on_ping_timer_timeout() -> void:
 	if multiplayer.is_server():
 		print_time()

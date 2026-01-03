@@ -15,6 +15,8 @@ var role_dict = {
 	-1: PlayerClass.new(-1, "Ксива", 0),
 }
 
+var role_player_dict = {} # {rid: pid}
+
 func from_dict(data: Dictionary) -> PlayerClass:
 	var new_player = PlayerClass.new(data['pid'], data['player_name'], data['ava_id'])
 	new_player.sync(data)
@@ -27,11 +29,12 @@ func make_player(pid, player_name) -> void:
 	player_dict[pid] = new_player
 	
 func kill(pid: int, place:=-1) -> void:
-	player_dict[pid].kill()
-	if place == -1:
-		player_dict[pid].place = get_alive_count()
-	else:
-		player_dict[pid].place = place
+	if player_dict[pid].alive:
+		player_dict[pid].kill()
+		if place == -1:
+			player_dict[pid].place = get_alive_count()
+		else:
+			player_dict[pid].place = place
 	
 func make_gost(pid) -> void:
 	var new_player = PlayerClass.new(pid, 'Gost', 0)
@@ -89,11 +92,7 @@ func get_ava_id(pid: int) -> int:
 func get_player_name(pid: int) -> String:
 	if pid > 0:
 		return player_dict[pid].player_name
-	for rid in role_dict:
-		if rid == pid:
-			return role_dict[rid].player_name
-	push_error("[PlayerListClass:get_player_name] unknown pid: %d" % pid)
-	return ''
+	return role_dict[pid].player_name
 
 func get_player_balance(pid: int) -> int:
 	return player_dict[pid].balance
@@ -220,6 +219,17 @@ func get_fix_earn() -> int:
 	@warning_ignore("integer_division")
 	return PLAYER_COST / get_alive_count()
 
+func get_auction_string_result() -> String :
+	var res := "На Аукционе Продано:\n"
+	var nothing_selled := true 
+	for pid in player_dict:
+		if player_dict[pid].rid != 0:
+			res += "«%s»\n" % player_dict[pid].role_name
+			nothing_selled = false
+	if nothing_selled:
+		res = "На аукционе ни чего не продано"
+	return res
+
 func get_state_screen_data(pid: int, state:String) -> Dictionary:
 	var data: Dictionary
 	match state:
@@ -234,7 +244,7 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 			} 
 		"set_role_result":
 			data = {
-				'label_state': "Результат Аукциона",
+				'label_state': get_auction_string_result(),
 				'next_button': "Дальше",
 				'slider_editable': false,
 				'message_label': player_dict[pid].get_palyer_role_result_message(),
@@ -297,12 +307,14 @@ func set_vote(pid, vote_pid, value) -> void:
 
 func get_first_most_richer_player() -> int:
 	var max_balance := 0
-	var max_pid := 0
 	for pid in player_dict:
 		if player_dict[pid].alive and player_dict[pid].balance > max_balance:
 			max_balance = player_dict[pid].balance
-			max_pid = pid
-	return max_pid
+	var max_pids := []
+	for pid in player_dict:
+		if player_dict[pid].alive and player_dict[pid].balance >= max_balance:
+			max_pids.append(pid)
+	return max_pids.pick_random()
 
 func calc_voting_result(exaption_enable=false):
 	var max_vote := -INF
@@ -312,7 +324,6 @@ func calc_voting_result(exaption_enable=false):
 		if max_vote < voting_dict[pid]:
 			max_pid = pid
 			max_vote = voting_dict[pid]
-	
 	if max_pid > 0:
 		for pid in voting_dict:
 			if player_dict[pid].alive and voting_dict[pid] >= max_vote:
@@ -337,10 +348,13 @@ func get_state_log(pid: int, state) -> String:
 	match state:
 		PlayerClass.REQUESTING:
 			pid_data = [pid_data.player_name, pid_data.request, pid_data.request_result, pid_data.balance]
-			res += "{0} запросил {1} получил {2} баланс равен {3}\n".format(pid_data)
+			if is_can_make_request(pid):
+				res += "{0} запросил {1} получил {2} баланс равен {3}\n".format(pid_data)
+			else:
+				res += "{0} получил {2} баланс равен {3}\n".format(pid_data)
 		PlayerClass.ROLING:
 			if pid_data.rid:
-				var auction_data = [pid_data.player_name, role_dict[pid_data.rid].player_name]
+				var auction_data = [pid_data.player_name, pid_data.role_name]
 				res += "{0} получил {1}\n".format(auction_data)
 			else:
 				var auction_data = [pid_data.player_name]
@@ -423,5 +437,32 @@ func calc_auction_result():
 					auction_result[rid]['pid'] = pid
 
 	for rid in auction_result:
-		player_dict[auction_result[rid]['pid']].rid = rid
-		player_dict[auction_result[rid]['pid']].role_name = role_dict[rid].player_name
+		var pid = auction_result[rid]['pid']
+		player_dict[pid].rid = rid
+		player_dict[pid].role_name = role_dict[rid].player_name
+		role_player_dict[rid] = pid
+		
+func is_can_make_request(pid):
+	if player_dict[pid].rid == -1:
+		return false
+	return true
+
+func is_gameend() -> bool:
+	var alive_count = get_alive_count()
+	if alive_count <= 1:
+		return true
+	if -1 in role_player_dict:
+		var ksiva_pid = role_player_dict[-1]
+		if player_dict[ksiva_pid].alive:
+			if alive_count <= 2:
+				player_dict[ksiva_pid].kill()
+				return false
+		else:
+			for pid in player_dict:
+				if pid != ksiva_pid:
+					kill(pid, alive_count+1)
+				else:
+					player_dict[pid].alive = true
+					player_dict[pid].place = 1
+			return true
+	return false

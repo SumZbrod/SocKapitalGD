@@ -37,8 +37,11 @@ func update(data):
 			"message":
 				message_label.text = str(data[key])
 			"role":
-				role_label.text = str(data[key])
-
+				if data[key]:
+					role_label.visible = true
+					role_label.text = str(data[key])
+				else:
+					role_label.visible = false
 func make_visible_personal_data():
 	score_label.visible = true
 	message_label.visible = true
