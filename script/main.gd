@@ -35,7 +35,7 @@ func _ready() -> void:
 	else:
 		SERVER_URL = "ws://127.0.0.1:" + str(PORT)
 	var args = OS.get_cmdline_args()
-	
+
 	for arg in args:
 		arg = arg as String
 		if arg.begins_with(">"):
@@ -44,7 +44,7 @@ func _ready() -> void:
 			for pl_name in players_names:
 				var code = randi() % 1_0000
 				player_codes[str(code)] = {'name': pl_name, 'not_used': true}
-				print("%s %d" % [pl_name, code])
+				print("%s\t%d" % [pl_name, code])
 		elif arg.begins_with("#"):
 			arg = arg.right(-1)
 			start_player_count = int(arg)
@@ -287,15 +287,15 @@ func _client_change_screen_data(update_date: Dictionary) -> void:
 			"clear_selaction":
 				voting_container.clear_selaction()
 			"history_log":
-				history_log.visible = true
-				history_log.text = update_date[key]
+				if update_date[key]:
+					history_log.visible = true
+					history_log.text = update_date[key]
 			_:
 				push_warning("[change_screen_data] Uknown key: %s" % key)
 
 @rpc("any_peer", "call_remote", "reliable")
 func _client_update_acc_info():
 	if multiplayer.is_server():
-		print("blay")
 		return
 	account.update(my_player_account.get_acc_info(state))
 
@@ -314,7 +314,10 @@ func _client_change_screen_properties() -> void:
 			account.visible = true
 			next_button.visible = true
 			input_field.visible = false
-			voting_container.visible = false
+			if my_player_account.rid == -2:
+				voting_container.visible = true
+			else:
+				voting_container.visible = false
 			if my_player_account.rid == -1:
 				h_slider.visible = false
 			else:
@@ -421,6 +424,7 @@ func _server_update_game_on_requesting(pid: int, player_data: Dictionary):
 	player_list.set_ready(pid, true)
 	if player_list.is_can_make_request(pid):
 		player_list.set_request(pid, player_data["h_slider_value"])
+		player_list.set_probiv(pid, player_data["vote_pid"])
 	else:
 		player_list.set_request(pid, 0)
 

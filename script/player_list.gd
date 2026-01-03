@@ -13,6 +13,9 @@ var ava_id_step:int = [1, 2, 4, 5, 7, 8].pick_random()
 
 var role_dict = {
 	-1: PlayerClass.new(-1, "Ксива", 0),
+	-2: PlayerClass.new(-2, "Консоль", 1),
+	-3: PlayerClass.new(-3, "Ставка", 2),
+	-4: PlayerClass.new(-4, "Аскеза", 3),
 }
 
 var role_player_dict = {} # {rid: pid}
@@ -119,14 +122,16 @@ func check_all_alive_ready() -> bool:
 
 func reset_request_vote(pid:=-1):
 	if pid != -1:
-		player_dict[pid]['request'] = 0
-		player_dict[pid]['request_result'] = 0
-		player_dict[pid]['vote'] = {}
+		player_dict[pid].request = 0
+		player_dict[pid].request_result = 0
+		player_dict[pid].vote = {}
+		player_dict[pid].probiv_pid = 0
 	else:
 		for sub_pid in player_dict:
-			player_dict[sub_pid]['request'] = 0
-			player_dict[sub_pid]['request_result'] = 0
-			player_dict[sub_pid]['vote'] = {}
+			player_dict[sub_pid].request = 0
+			player_dict[sub_pid].request_result = 0
+			player_dict[sub_pid].vote = {}
+			player_dict[sub_pid].probiv_pid = 0
 
 func reset_game_data():
 	voting_dict = {}
@@ -135,7 +140,8 @@ func reset_game_data():
 
 func reset_vote(pid: int) -> void:
 	player_dict[pid].vote = {}
-
+	player_dict[pid].probiv_pid = 0
+	
 func set_request(pid: int, value: int) -> void:
 	player_dict[pid].request = value
 	
@@ -257,6 +263,17 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 					'next_button': "Пропуск",
 					'slider_editable': false,
 					'message_label': "",
+	
+				}
+			elif player_dict[pid].rid == -2:
+				data = {
+					'label_state': "Бюджет: %d\nВарианты пробива" % init_budget,
+					'h_slider_max': init_budget,
+					'h_slider_value': PLAYER_COST,
+					'next_button': "Запросить",
+					'slider_editable': true,
+					'message_label': "Ваш запрос: %d" % PLAYER_COST,
+					"voting_vars": get_voiting_vars_for(pid),
 				}
 			else:
 				data = {
@@ -278,6 +295,17 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 					"voting_vars": get_voiting_vars_for(pid),
 					'message_label': "Отданные голоса\nпойдут в защиту игрока",
 					'clear_selaction': true,
+				} 
+			elif player_dict[pid].rid == -2:
+				data = {
+					"label_state": "Выберите за кого голосовать",
+					"next_button": "Пропустить\nголосование",
+					"slider_editable": true,
+					"h_slider_max": get_max_voting_value(pid),
+					"h_slider_value": 0,
+					"voting_vars": get_voiting_vars_for(pid),
+					'clear_selaction': true,
+					"history_log" : get_probiv(pid),
 				} 
 			else:
 				data = {
@@ -471,3 +499,13 @@ func is_gameend() -> bool:
 					player_dict[pid].place = 1
 			return true
 	return false
+
+func set_probiv(pid, probiv_pid):
+	if probiv_pid and player_dict[pid].rid == -2:
+		player_dict[pid].probiv_pid = probiv_pid
+
+func get_probiv(pid:int) -> String:
+	var target_pid = player_dict[pid].probiv_pid
+	if target_pid:
+		return player_dict[target_pid].get_probiv()
+	return ""

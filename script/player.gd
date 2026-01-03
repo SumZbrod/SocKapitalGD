@@ -13,6 +13,7 @@ var subsidia: int
 var auction := {}
 var rid := 0
 var role_name: String
+var probiv_pid: int
 
 enum {
 	JOIN,
@@ -65,7 +66,7 @@ func sync(player_dict:Dictionary):
 	subsidia = player_dict['subsidia'] 
 	rid = player_dict['rid'] 
 	role_name = player_dict['role_name'] 
-	
+	probiv_pid = player_dict['probiv_pid']
 
 func get_player_name():
 	return player_name
@@ -85,6 +86,7 @@ func to_dict() -> Dictionary:
 		'place': place,
 		'subsidia': subsidia,
 		'role_name': role_name,
+		'probiv_pid': probiv_pid,
 	}
 
 func get_request() -> int:
@@ -104,7 +106,6 @@ func get_acc_info(state) -> Dictionary:
 				res['message'] += '\n Субсидия: %d' % subsidia
 		ROLE_RESULT:
 			res['role'] = role_name
-			
 	return res
 
 func _to_string() -> String:
@@ -115,3 +116,12 @@ func get_palyer_role_result_message() -> String:
 		return "Вы ни чего не получили"
 	else:
 		return 'Вы получили «%s»' % role_name
+
+func get_probiv() -> String:
+	var res_format = [player_name, balance, request, request_result]
+	if rid == 0:
+		res_format.append("Отсуствует")
+	else:
+		res_format.append(role_name)
+	var res := '[{0}] Баланс: {1} Запрос: {2} Получил: {3} Роль: {4}'
+	return res
