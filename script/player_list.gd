@@ -330,7 +330,6 @@ func calc_voting_result(exaption_enable=false):
 				selected_pid.append(pid)
 	else:
 		selected_pid = [get_first_most_richer_player()]
-	print("[PlayerList:calc_voting_result] voting_dict ", voting_dict)
 	vote_winner = []
 	for pid in selected_pid:
 		var winner := {
@@ -424,6 +423,7 @@ func reset_auction(pid):
 func calc_auction_result():
 	var auction_result = {} # {rid: {pid, value}}
 	for rid in role_dict:
+		var winner_pids := []
 		for pid in player_dict:
 			var auction = player_dict[pid].auction
 			if rid in auction:
@@ -435,6 +435,11 @@ func calc_auction_result():
 				elif auction_result[rid]['value'] < auction[rid]:
 					auction_result[rid]['value'] = auction[rid]
 					auction_result[rid]['pid'] = pid
+					winner_pids = [pid]
+				elif auction_result[rid]['value'] == auction[rid]:
+					winner_pids.append(pid)
+		if winner_pids.size() > 1:
+			auction_result[rid]['pid'] = winner_pids.pick_random()
 
 	for rid in auction_result:
 		var pid = auction_result[rid]['pid']

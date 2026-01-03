@@ -292,7 +292,11 @@ func _client_change_screen_data(update_date: Dictionary) -> void:
 			_:
 				push_warning("[change_screen_data] Uknown key: %s" % key)
 
+@rpc("any_peer", "call_remote", "reliable")
 func _client_update_acc_info():
+	if multiplayer.is_server():
+		print("blay")
+		return
 	account.update(my_player_account.get_acc_info(state))
 
 # Меняет отображаемые элеементы на экране 
@@ -526,7 +530,6 @@ func _client_update_submit_screen_on_voting():
 	_client_change_screen_data(update_data)
 
 func _on_change_voting(pid:int):
-	print("[main:_on_change_voting] pid ", pid)
 	match state:
 		PlayerClass.ROLING:
 			if pid != 0 and h_slider.value > 0:
@@ -549,6 +552,7 @@ func _server_set_eliminating_state():
 			var pid = acc_data['pid']
 			player_list.kill(pid, alive_count)
 			_client_make_gameover.rpc_id(pid)
+			_client_update_acc_info.rpc_id(pid)
 			voting_vars_array.append(pid)
 			if player_list.get_player(pid).rid == -1:
 				label_state_str += "Игру покидает Ксива: %s\n" % acc_data['name']
