@@ -14,6 +14,9 @@ var auction := {}
 var rid := 0
 var role_name: String
 var probiv_pid: int
+var bettor_pid: int
+var stavka_pid: int
+var stavka_name: String
 
 enum {
 	JOIN,
@@ -67,6 +70,9 @@ func sync(player_dict:Dictionary):
 	rid = player_dict['rid'] 
 	role_name = player_dict['role_name'] 
 	probiv_pid = player_dict['probiv_pid']
+	bettor_pid = player_dict['bettor_pid']
+	stavka_pid = player_dict['stavka_pid']
+	stavka_name = player_dict['stavka_name']
 
 func get_player_name():
 	return player_name
@@ -81,12 +87,15 @@ func to_dict() -> Dictionary:
 		'ava_id': ava_id,
 		'balance': balance,
 		'request': request,
-		'request_result': request_result,
+		'request_result': request_result, 
 		'vote': vote,
 		'place': place,
 		'subsidia': subsidia,
 		'role_name': role_name,
 		'probiv_pid': probiv_pid,
+		'bettor_pid': bettor_pid,
+		'stavka_pid': stavka_pid,
+		'stavka_name': stavka_name,
 	}
 
 func get_request() -> int:
@@ -106,6 +115,9 @@ func get_acc_info(state) -> Dictionary:
 				res['message'] += '\n Субсидия: %d' % subsidia
 		ROLE_RESULT:
 			res['role'] = role_name
+		REQUESTING:
+			if rid == -3:
+				res['role'] = "Посавили на %s" % stavka_name
 	return res
 
 func _to_string() -> String:

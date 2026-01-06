@@ -494,8 +494,11 @@ func _server_set_role_result_state():
 		_client_change_screen_data.rpc_id(pid, new_player_date)
 	player_list.reset_game_data()
 
-func _server_update_game_on_role_result(pid: int, _player_data: Dictionary) -> void:
+func _server_update_game_on_role_result(pid: int, player_data: Dictionary) -> void:
 	player_list.set_ready(pid, true)
+	if player_list.is_bettor(pid):
+		var vote_pid = player_data['vote_pid'] 
+		player_list.set_stavka(pid, vote_pid)
 	if player_list.check_all_alive_ready():
 		_server_set_state_aside(PlayerClass.REQUESTING)
 
@@ -614,6 +617,7 @@ func _on_state_timer_timeout() -> void:
 func _server_set_gameend_state() -> void:
 	var win_pids := [] 
 	var win_message = ""
+	player_list.reborn_stavka()
 	for pid in player_list.get_alive_pids():
 		win_pids.append(pid)
 		player_list.set_place(pid, 1)

@@ -38,7 +38,12 @@ func kill(pid: int, place:=-1) -> void:
 			player_dict[pid].place = get_alive_count()
 		else:
 			player_dict[pid].place = place
-	
+		if player_dict[pid].bettor_pid:
+			if player_dict[pid].bettor_pid == pid:
+				push_warning("[%s:%d] bettor pid can't be equal to your self" % [pid, player_dict[pid].player_name])
+				return
+			kill(player_dict[pid].bettor_pid, place)
+
 func make_gost(pid) -> void:
 	var new_player = PlayerClass.new(pid, 'Gost', 0)
 	new_player.kill()
@@ -256,6 +261,9 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 				'message_label': player_dict[pid].get_palyer_role_result_message(),
 				"voting_vars": [],
 			}
+			if player_dict[pid].rid == -3:
+				data["voting_vars"] = get_voiting_vars_for(pid)
+				data["next_button"] = "Выбрать на кого\nпоставить"
 		"set_request":
 			if player_dict[pid].rid == -1:
 				data = {
@@ -382,11 +390,12 @@ func get_state_log(pid: int, state) -> String:
 				res += "{0} получил {2} баланс равен {3}\n".format(pid_data)
 		PlayerClass.ROLING:
 			if pid_data.rid:
-				var auction_data = [pid_data.player_name, pid_data.role_name]
-				res += "{0} получил {1}\n".format(auction_data)
+				res += "{0} получил {1}\n".format([pid_data.player_name, pid_data.role_name])
 			else:
-				var auction_data = [pid_data.player_name]
-				res += "{0} пропустил аукцион\n".format(auction_data)
+				res += "{0} пропустил аукцион\n".format([pid_data.player_name])
+		PlayerClass.ROLE_RESULT:
+			if pid_data.rid == -3:
+				res += "%s поставил на %s\n" % [pid_data.player_name, player_dict[pid_data.stavka_pid].player_name]
 		PlayerClass.VOTING:
 			var vote_name_ 
 			var vote_value_
@@ -526,3 +535,19 @@ func get_probiv(pid:int) -> String:
 	if target_pid:
 		return player_dict[target_pid].get_probiv()
 	return ""
+
+func is_bettor(pid:int) -> bool:
+	return player_dict[pid].rid == -3
+	
+func set_stavka(bettor_pid:int, stavka_pid:int) -> void:
+	player_dict[stavka_pid].bettor_pid = bettor_pid
+	player_dict[bettor_pid].stavka_pid = stavka_pid
+	player_dict[bettor_pid].stavka_name = player_dict[stavka_pid].player_name
+
+func reborn_stavka() -> void:
+	if -3 in role_player_dict:
+		var bettor_pid = role_player_dict[-3]
+		var stavka_pid = player_dict[bettor_pid].stavka_pid
+		if player_dict[stavka_pid].alive:
+			player_dict[bettor_pid].alive = true
+			player_dict[bettor_pid].place = 1
