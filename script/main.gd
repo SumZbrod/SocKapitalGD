@@ -318,7 +318,7 @@ func _client_change_screen_properties() -> void:
 				voting_container.visible = true
 			else:
 				voting_container.visible = false
-			if my_player_account.rid == -1:
+			if my_player_account.rid in [-1, -4]:
 				h_slider.visible = false
 			else:
 				h_slider.visible = true
