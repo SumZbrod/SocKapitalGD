@@ -26,6 +26,7 @@ var SERVER_URL: String
 
 var clock := .0
 var wait_time := 5 * 60
+var small_wait_time := 60
 
 var roles_is_setting := false
 
@@ -293,6 +294,10 @@ func _client_change_screen_data(update_date: Dictionary) -> void:
 			_:
 				push_warning("[change_screen_data] Uknown key: %s" % key)
 
+func _server_update_all_acc_info():
+	for pid in player_list.get_alive_pids():
+		_client_update_acc_info.rpc_id(pid)
+
 @rpc("any_peer", "call_remote", "reliable")
 func _client_update_acc_info():
 	if multiplayer.is_server():
@@ -331,7 +336,7 @@ func _client_change_screen_properties() -> void:
 			input_field.visible = false
 			h_slider.visible = true
 		PlayerClass.ROLE_RESULT:
-			clock = wait_time
+			clock = small_wait_time
 			next_button.disabled = false
 			next_button.visible = true
 			voting_container.visible = true
@@ -349,6 +354,11 @@ func _client_change_screen_properties() -> void:
 		PlayerClass.ELIMINATING:
 			next_button.disabled = false
 			voting_container.visible = true
+			h_slider.visible = false
+			next_button.visible = false
+		PlayerClass.URAVNILOVKA:
+			next_button.disabled = false
+			voting_container.visible = false
 			h_slider.visible = false
 			next_button.visible = false
 		PlayerClass.GAMEEND:
@@ -391,6 +401,8 @@ func _server_change_state():
 			_server_set_voting_state()
 		PlayerClass.ELIMINATING:
 			_server_set_eliminating_state()
+		PlayerClass.URAVNILOVKA:
+			_server_set_uravnilovka_state()
 		PlayerClass.GAMEEND:
 			_server_set_gameend_state()
 		_:
@@ -488,7 +500,7 @@ func _client_update_submit_screen_on_roling():
 	_client_change_screen_data(update_data)
 
 func _server_set_role_result_state():
-	clock = wait_time
+	clock = small_wait_time
 	for pid in player_list.get_alive_pids():
 		var new_player_date = player_list.get_state_screen_data(pid, "set_role_result")
 		_client_change_screen_data.rpc_id(pid, new_player_date)
@@ -574,11 +586,25 @@ func _server_set_eliminating_state():
 		}
 		_server_update_all_client_screen_data(update_data)
 		_server_sync_all_player()
-		_server_set_state_aside(PlayerClass.REQUESTING)
+		if player_list.is_need_uravlolovka():
+			player_list.make_uravnilovka()
+			_server_set_state_aside(PlayerClass.URAVNILOVKA)
+		else:
+			_server_set_state_aside(PlayerClass.REQUESTING)
 	else:
 		push_warning("vote winner didn't calc")
 		player_list.calc_voting_result(true)
 		_server_set_state_aside(PlayerClass.ELIMINATING)
+
+func _server_set_uravnilovka_state():
+	var update_data = {
+		'label_state':  "УРАВНИЛОВКА",
+		'clear_selaction': true,
+	}
+	_server_sync_all_player()
+	_server_update_all_acc_info()
+	_server_update_all_client_screen_data(update_data)
+	_server_set_state_aside(PlayerClass.REQUESTING)
 
 @rpc("any_peer", "call_remote", "reliable")
 func _client_make_gameover() -> void:
@@ -663,3 +689,6 @@ func keep_alive_dummy(pid) -> void:
 	
 func add_roles_to_container() -> void:
 	voting_container.add_new_members(player_list.get_role_data_list(), false)
+
+func _on_link_button_pressed() -> void:
+	OS.shell_open("https://github.com/SumZbrod/SocKapitalGD")

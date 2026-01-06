@@ -1,10 +1,11 @@
-[gd_scene load_steps=8 format=3 uid="uid://cpwdrknl4gdqk"]
+[gd_scene load_steps=9 format=3 uid="uid://cpwdrknl4gdqk"]
 
 [ext_resource type="Script" uid="uid://bp8uosc2eot8g" path="res://script/main.gd" id="1_itxqv"]
 [ext_resource type="PackedScene" uid="uid://blr8ogvrdpsy8" path="res://scene/voting_container.tscn" id="2_wp4xf"]
 [ext_resource type="Shader" uid="uid://dscihv7iayhrv" path="res://shader/show.gdshader" id="4_0ha60"]
 [ext_resource type="Texture2D" uid="uid://cvutlcds7ttye" path="res://assets/img/wallpaper.webp" id="4_brvut"]
 [ext_resource type="PackedScene" uid="uid://bcmreqckndjor" path="res://scene/account.tscn" id="5_4j5ol"]
+[ext_resource type="Texture2D" uid="uid://dn7qku5pthd3w" path="res://assets/img/gh.png" id="7_of57s"]
 [ext_resource type="Texture2D" uid="uid://db4uqjuthofgp" path="res://assets/img/icon.png" id="7_p1hux"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_4j5ol"]
@@ -25,7 +26,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_itxqv")
-start_player_count = 3
+start_player_count = 4
 
 [node name="UpperBlock" type="VBoxContainer" parent="."]
 z_index = 1
@@ -98,7 +99,7 @@ theme_override_font_sizes/font_size = 49
 text = "Присоединиться"
 
 [node name="StateTimer" type="Timer" parent="."]
-wait_time = 0.5
+wait_time = 2.0
 one_shot = true
 
 [node name="Wallpaper" type="NinePatchRect" parent="."]
@@ -167,7 +168,30 @@ grow_vertical = 2
 wait_time = 60.0
 autostart = true
 
+[node name="LinkButton" type="LinkButton" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -79.0
+offset_top = 29.0
+offset_right = -39.0
+offset_bottom = 69.0
+grow_horizontal = 0
+uri = "https://github.com/SumZbrod/SocKapitalGD"
+
+[node name="github_logo" type="NinePatchRect" parent="LinkButton"]
+modulate = Color(1, 1, 1, 0.5372549)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("7_of57s")
+
 [connection signal="value_changed" from="VBox/HSlider" to="." method="_on_h_slider_value_changed"]
 [connection signal="pressed" from="VBox/NextButton" to="." method="_on_next_button_pressed"]
 [connection signal="timeout" from="StateTimer" to="." method="_on_state_timer_timeout"]
 [connection signal="timeout" from="PingTimer" to="." method="_on_ping_timer_timeout"]
+[connection signal="pressed" from="LinkButton" to="." method="_on_link_button_pressed"]

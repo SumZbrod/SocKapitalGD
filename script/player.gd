@@ -10,7 +10,7 @@ var vote := {}
 var place := 0
 var pid: int
 var subsidia: int
-var auction := {}
+var auction := {} # {vote_pid: vote_value}
 var rid := 0
 var role_name: String
 var probiv_pid: int
@@ -25,6 +25,7 @@ enum {
 	REQUESTING,
 	VOTING,
 	ELIMINATING,
+	URAVNILOVKA,
 	GAMEEND,
 }
 
@@ -37,19 +38,17 @@ func kill():
 	alive = false
 
 func get_ava_rect() -> Rect2:
+	var r = 341
+	var x = ava_id % 3
+	@warning_ignore("integer_division")
+	var y = ava_id / 3
+	var res: Rect2
 	if pid > 0:
-		var r = 341
-		var x = ava_id % 3
-		@warning_ignore("integer_division")
-		var y = ava_id / 3
-		return Rect2(r*x, r*y, r, r)
+		res = Rect2(r*x, r*y, r, r)
 	else:
-		var r = 512
-		var x = ava_id % 2
-		@warning_ignore("integer_division")
-		var y = ava_id / 2
-		return Rect2(1024+r*x, r*y, r, r)
-		
+		res = Rect2(1024+r*x, r*y, r, r)
+	return res
+
 func get_pid():
 	return pid
 
@@ -117,7 +116,12 @@ func get_acc_info(state) -> Dictionary:
 			res['role'] = role_name
 		REQUESTING:
 			if rid == -3:
-				res['role'] = "Посавили на %s" % stavka_name
+				res['role'] = "Поставили на %s" % stavka_name
+		URAVNILOVKA:
+			if request_result > 0:
+				res['message'] = "Пособие: %d" % request_result
+			elif request_result < 0:
+				res['message'] = "Налог: %d" % request_result
 	return res
 
 func _to_string() -> String:
