@@ -373,6 +373,8 @@ func get_state_log(pid: int, state) -> String:
 	var res = ""
 	match state:
 		PlayerClass.REQUESTING:
+			if pid_data.rid == -2:
+				res += "{0} пробил {1}\n".format([pid_data.player_name, player_dict[pid_data.probiv_pid].player_name])
 			pid_data = [pid_data.player_name, pid_data.request, pid_data.request_result, pid_data.balance]
 			if is_can_make_request(pid):
 				res += "{0} запросил {1} получил {2} баланс равен {3}\n".format(pid_data)
@@ -468,12 +470,28 @@ func calc_auction_result():
 		if winner_pids.size() > 1:
 			auction_result[rid]['pid'] = winner_pids.pick_random()
 
+
 	for rid in auction_result:
 		var pid = auction_result[rid]['pid']
-		player_dict[pid].rid = rid
-		player_dict[pid].role_name = role_dict[rid].player_name
-		role_player_dict[rid] = pid
-		
+		set_rid_pid(pid, rid)
+	
+	var need_add_konsole :=  -1 in role_player_dict and -2 not in role_player_dict
+	var need_add_ksiva :=  -2 in role_player_dict and -1 not in role_player_dict
+	if need_add_konsole or need_add_ksiva:
+		var negative_canditats := []
+		for pid in player_dict:
+			if player_dict[pid].alive and !player_dict[pid].rid:
+				negative_canditats.append(pid)
+		if need_add_konsole:
+			set_rid_pid(negative_canditats.pick_random(), -2)
+		else:
+			set_rid_pid(negative_canditats.pick_random(), -1)
+			
+func set_rid_pid(pid, rid):
+	player_dict[pid].rid = rid
+	player_dict[pid].role_name = role_dict[rid].player_name
+	role_player_dict[rid] = pid	
+
 func is_can_make_request(pid):
 	if player_dict[pid].rid == -1:
 		return false
