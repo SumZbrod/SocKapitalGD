@@ -263,7 +263,6 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 					'next_button': "Пропуск",
 					'slider_editable': false,
 					'message_label': "",
-	
 				}
 			elif player_dict[pid].rid == -2:
 				data = {

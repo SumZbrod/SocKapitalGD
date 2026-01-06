@@ -123,5 +123,5 @@ func get_probiv() -> String:
 		res_format.append("Отсуствует")
 	else:
 		res_format.append(role_name)
-	var res := '[{0}] Баланс: {1} Запрос: {2} Получил: {3} Роль: {4}'
+	var res := '[{0}] Баланс: {1} Запрос: {2} Получил: {3} Роль: {4}'.format(res_format)
 	return res
