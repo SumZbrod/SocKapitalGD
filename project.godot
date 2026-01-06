@@ -24,7 +24,3 @@ window/size/viewport_width=648
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/script_splitter/plugin.cfg")
-
-[rendering]
-
-textures/canvas_textures/default_texture_filter=0

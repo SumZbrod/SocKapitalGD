@@ -77,6 +77,7 @@ func _on_button_mouse_exited() -> void:
 func reset() -> void:
 	set_ava_mode(0)
 	deselected = false
+	button_pressed = false
 
 func deselectit() -> void:
 	set_ava_mode(2)
