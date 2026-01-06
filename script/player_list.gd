@@ -11,12 +11,15 @@ var start_player_count: int
 var ava_id_shift := randi() % 9
 var ava_id_step:int = [1, 2, 4, 5, 7, 8].pick_random()
 var vote_sum := 0
+var sum_balance := 0
+var max_balance_ := -INF 
 
 var role_dict = {
 	-1: PlayerClass.new(-1, "Ксива", 0),
 	-2: PlayerClass.new(-2, "Консоль", 1),
 	-3: PlayerClass.new(-3, "Ставка", 2),
 	-4: PlayerClass.new(-4, "Аскеза", 3),
+	-5: PlayerClass.new(-5, "Лицензия", 4)
 }
 
 var role_player_dict = {} # {rid: pid}
@@ -407,6 +410,13 @@ func get_state_log(pid: int, state) -> String:
 			else:
 				res += "{0} получил {2} баланс равен {3}\n".format(pid_data)
 		PlayerClass.ROLING:
+			if pid_data.auction:
+				var action_name
+				var auction_value
+				for key in pid_data.auction:
+					action_name = role_dict[key].player_name
+					auction_value = int(pid_data.auction[key])
+				res += "{0} поставил {1} на {2}\n".format([pid_data.player_name, auction_value, action_name])
 			if pid_data.rid:
 				res += "{0} получил {1}\n".format([pid_data.player_name, pid_data.role_name])
 			else:
@@ -430,6 +440,11 @@ func get_state_log(pid: int, state) -> String:
 					res += "{0} поставил {1} против {2}\n".format(pid_data)
 			else:
 				res += "%s не голосовал\n" % player_dict[pid].player_name
+		PlayerClass.URAVNILOVKA:
+			if pid_data.request_result > 0:
+				res = "{0} получил пособие в размере {10}\n".format([pid_data.player_name, pid_data.request_result])
+			elif pid_data.request_result < 0:
+				res = "{0} заплатил налоги в размере {1}\n".format([pid_data.player_name, pid_data.request_result])
 	return res
 
 func set_place(pid:int, place:int):
@@ -558,8 +573,18 @@ func get_probiv(pid:int) -> String:
 
 func is_bettor(pid:int) -> bool:
 	return player_dict[pid].rid == -3
+
+func get_random_alive_pid_exept(pid: int) -> int:
+	var alive_pids = get_alive_pids()
+	var alive_count = alive_pids.size()
+	var random_i = randi() % alive_count
+	if alive_pids[random_i] == pid:
+		return alive_pids[(random_i + 1) % alive_count]
+	return alive_pids[random_i]
 	
 func set_stavka(bettor_pid:int, stavka_pid:int) -> void:
+	if stavka_pid <= 1:
+		stavka_pid = get_random_alive_pid_exept(bettor_pid)
 	player_dict[stavka_pid].bettor_pid = bettor_pid
 	player_dict[bettor_pid].stavka_pid = stavka_pid
 	player_dict[bettor_pid].stavka_name = player_dict[stavka_pid].player_name
@@ -571,3 +596,44 @@ func reborn_stavka() -> void:
 		if player_dict[stavka_pid].alive:
 			player_dict[bettor_pid].alive = true
 			player_dict[bettor_pid].place = 1
+
+func is_need_uravlolovka() -> bool:
+	if get_alive_count() < 2:
+		return false
+	max_balance_ = -INF 
+	for pid in player_dict:
+		if player_dict[pid].alive:
+			sum_balance += player_dict[pid].balance
+			if max_balance_ < player_dict[pid].balance:
+				max_balance_ = player_dict[pid].balance
+	return max_balance_ > sum_balance * .5
+			
+func make_uravnilovka() -> void:
+	var alive_count = get_alive_count()
+	@warning_ignore("integer_division")
+	var mean_balance = sum_balance / alive_count
+	var c = (sum_balance/2. - mean_balance) / (max_balance_ - mean_balance)
+	if c > 1 or c < 0:
+		push_warning("c should in [0, 1] but equal %d" % c)
+		return
+	for pid in player_dict:
+		if player_dict[pid].alive:
+			var player_balance = player_dict[pid].balance
+			var new_player_balance = int(mean_balance + c*(player_balance-mean_balance))
+			player_dict[pid].request = 0
+			player_dict[pid].request_result = new_player_balance-player_balance
+			player_dict[pid].balance = new_player_balance
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
