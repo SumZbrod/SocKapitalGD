@@ -28,7 +28,7 @@ var clock := .0
 var wait_time := 5 * 60
 var small_wait_time := 60
 
-var roles_is_setting := true
+var roles_is_setting := false
 
 func _ready() -> void:
 	if OS.has_feature("web"):
