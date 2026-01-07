@@ -17,6 +17,7 @@ var probiv_pid: int
 var bettor_pid: int
 var stavka_pid: int
 var stavka_name: String
+var has_immunitet := false
 
 enum {
 	JOIN,
@@ -72,6 +73,8 @@ func sync(player_dict:Dictionary):
 	bettor_pid = player_dict['bettor_pid']
 	stavka_pid = player_dict['stavka_pid']
 	stavka_name = player_dict['stavka_name']
+	has_immunitet = player_dict['has_immunitet']
+	
 
 func get_player_name():
 	return player_name
@@ -95,6 +98,7 @@ func to_dict() -> Dictionary:
 		'bettor_pid': bettor_pid,
 		'stavka_pid': stavka_pid,
 		'stavka_name': stavka_name,
+		'has_immunitet': has_immunitet,
 	}
 
 func get_request() -> int:
@@ -122,6 +126,8 @@ func get_acc_info(state) -> Dictionary:
 				res['message'] = "Пособие: %d" % request_result
 			elif request_result < 0:
 				res['message'] = "Налог: %d" % request_result
+	if has_immunitet:
+		res['message'] += "\nИММУНИТЕТ"
 	return res
 
 func _to_string() -> String:

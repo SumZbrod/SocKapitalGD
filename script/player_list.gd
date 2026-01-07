@@ -19,9 +19,11 @@ var role_dict = {
 	-2: PlayerClass.new(-2, "Консоль", 1),
 	-3: PlayerClass.new(-3, "Ставка", 2),
 	-4: PlayerClass.new(-4, "Аскеза", 3),
-	-5: PlayerClass.new(-5, "Лицензия", 4)
+	-5: PlayerClass.new(-5, "Лицензия", 4),
 }
-
+var item_dict = {
+	-6: PlayerClass.new(-6, "Амулет", 5),
+}
 var role_player_dict = {} # {rid: pid}
 
 func from_dict(data: Dictionary) -> PlayerClass:
@@ -172,7 +174,7 @@ func set_request_result(shrink_budget, power):
 		if player_dict[pid].rid == -1:
 			player_dict[pid].request_result = get_fix_earn()
 		elif player_dict[pid].rid == -4:
-			player_dict[pid].request_result = vote_sum
+			player_dict[pid].request_result = max(0, vote_sum)
 		elif shrink_budget == init_budget:
 			player_dict[pid].request_result = player_dict[pid].request
 		else:
@@ -203,7 +205,7 @@ func get_subsidia() -> int:
 				max_minus = player_dict[pid].request_result
 	return abs(max_minus)
 	
-func get_voiting_vars_for(pid:int) -> Array:
+func get_voiting_vars_for(pid:int, append_itmes:=true) -> Array:
 	var voting_vars = []
 	if player_dict[pid].rid == -4:
 		return [pid]
@@ -213,6 +215,8 @@ func get_voiting_vars_for(pid:int) -> Array:
 		if !player_dict[sub_pid].alive:
 			continue
 		voting_vars.append(sub_pid)
+	if append_itmes and voting_vars.size() > 1 and !player_dict[pid].has_immunitet:
+		voting_vars.append(-6)
 	return voting_vars
 
 func get_max_voting_value(pid: int) -> int:
@@ -281,7 +285,7 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 					'next_button': "Запросить",
 					'slider_editable': true,
 					'message_label': "Ваш запрос: %d" % PLAYER_COST,
-					"voting_vars": get_voiting_vars_for(pid),
+					"voting_vars": get_voiting_vars_for(pid, false),
 				}
 			elif player_dict[pid].rid == -4:
 				data = {
@@ -321,7 +325,7 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 					"voting_vars": get_voiting_vars_for(pid),
 					'message_label': "Вы эти баллы заплатите в двойне",
 					'clear_selaction': true,
-					"history_log" : get_probiv(pid),
+					"append_history_log" : get_probiv(pid),
 				} 
 			elif player_dict[pid].rid == -4:
 				data = {
@@ -345,8 +349,10 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 				} 
 	return data
 
-func get_vote_value_sign(pid, _vote_pid) -> int:
+func get_vote_value_sign(pid, vote_pid) -> int:
 	if player_dict[pid].rid in [-1, -4]:
+		return -1
+	if player_dict[pid].rid == -3 and player_dict[pid].stavka_pid == vote_pid:
 		return -1
 	return 1
 
@@ -359,33 +365,37 @@ func set_vote(pid, vote_pid, value) -> void:
 	else:
 		voting_dict[vote_pid] = value * value_sign
 
-func get_first_most_richer_player() -> int:
+func get_random_most_richer_player() -> int:
 	var max_balance := 0
 	for pid in player_dict:
-		if player_dict[pid].alive and player_dict[pid].balance > max_balance:
+		if player_dict[pid].alive and !player_dict[pid].has_immunitet and player_dict[pid].balance > max_balance:
 			max_balance = player_dict[pid].balance
 	var max_pids := []
 	for pid in player_dict:
-		if player_dict[pid].alive and player_dict[pid].balance >= max_balance:
+		if player_dict[pid].alive and !player_dict[pid].has_immunitet and player_dict[pid].balance >= max_balance:
 			max_pids.append(pid)
 	return max_pids.pick_random()
 
 func calc_voting_result(exaption_enable=false):
 	var max_vote := -INF
-	var max_pid := 0
 	var selected_pid := []
+	var immunitet_pid: int
 	vote_sum = 0
 	for pid in voting_dict:
 		vote_sum += voting_dict[pid]
+		if player_dict[pid].has_immunitet:
+			immunitet_pid = pid
+			continue
 		if max_vote < voting_dict[pid]:
-			max_pid = pid
 			max_vote = voting_dict[pid]
-	if max_pid > 0:
+	if max_vote > 0:
 		for pid in voting_dict:
-			if player_dict[pid].alive and voting_dict[pid] >= max_vote:
+			if player_dict[pid].alive and !player_dict[pid].has_immunitet and voting_dict[pid] >= max_vote:
 				selected_pid.append(pid)
 	else:
-		selected_pid = [get_first_most_richer_player()]
+		selected_pid = [get_random_most_richer_player()]
+	if immunitet_pid in player_dict:
+		player_dict[immunitet_pid].has_immunitet = false
 	vote_winner = []
 	for pid in selected_pid:
 		var winner := {
@@ -409,6 +419,8 @@ func get_state_log(pid: int, state) -> String:
 				res += "{0} запросил {1} получил {2} баланс равен {3}\n".format(pid_data)
 			else:
 				res += "{0} получил {2} баланс равен {3}\n".format(pid_data)
+			if player_dict[pid].has_immunitet:
+				res += "%s получил иммунитет\n" % player_dict[pid].player_name
 		PlayerClass.ROLING:
 			if pid_data.auction:
 				var action_name
@@ -439,10 +451,13 @@ func get_state_log(pid: int, state) -> String:
 				else:
 					res += "{0} поставил {1} против {2}\n".format(pid_data)
 			else:
-				res += "%s не голосовал\n" % player_dict[pid].player_name
+				if -6 in player_dict[pid].auction:
+					res += "%s поставил на амулет %d\n" % [player_dict[pid].player_name, int(player_dict[pid].auction[-6])]
+				else:
+					res += "%s не голосовал\n" % player_dict[pid].player_name
 		PlayerClass.URAVNILOVKA:
 			if pid_data.request_result > 0:
-				res = "{0} получил пособие в размере {10}\n".format([pid_data.player_name, pid_data.request_result])
+				res = "{0} получил пособие в размере {1}\n".format([pid_data.player_name, pid_data.request_result])
 			elif pid_data.request_result < 0:
 				res = "{0} заплатил налоги в размере {1}\n".format([pid_data.player_name, pid_data.request_result])
 	return res
@@ -486,16 +501,33 @@ func get_role_data_list() -> Array:
 		data_list.append(new_role)
 	return data_list
 	
+func get_item_data_list() -> Array:
+	var data_list := []
+	for rid in item_dict:
+		var new_role = {
+			'pid' = rid,
+			'ava_id' = item_dict[rid].ava_id,
+			'name' = item_dict[rid].player_name,
+		}
+		data_list.append(new_role)
+	return data_list
+
 func set_auction(pid, vote_pid, vote_value):
 	player_dict[pid].auction = {vote_pid: vote_value}
 	player_dict[pid].balance -= int(vote_value)
 
-func reset_auction(pid):
-	player_dict[pid].auction = {}
+func reset_auction(pid:=-1):
+	if pid==-1:
+		for sub_pid in player_dict:
+			player_dict[sub_pid].auction = {}
+	else:
+		player_dict[pid].auction = {}
 
-func calc_auction_result():
+## return dict like {rid: {pid, value}}
+func calc_auction_result(auc_type:="role"):
 	var auction_result = {} # {rid: {pid, value}}
-	for rid in role_dict:
+	var r_dict = role_dict if auc_type == "role" else item_dict
+	for rid in r_dict:
 		var winner_pids := []
 		for pid in player_dict:
 			var auction = player_dict[pid].auction
@@ -513,8 +545,10 @@ func calc_auction_result():
 					winner_pids.append(pid)
 		if winner_pids.size() > 1:
 			auction_result[rid]['pid'] = winner_pids.pick_random()
-
-
+	return auction_result
+	
+func make_role_auction_result():
+	var auction_result = calc_auction_result()
 	for rid in auction_result:
 		var pid = auction_result[rid]['pid']
 		set_rid_pid(pid, rid)
@@ -530,7 +564,7 @@ func calc_auction_result():
 			set_rid_pid(negative_canditats.pick_random(), -2)
 		else:
 			set_rid_pid(negative_canditats.pick_random(), -1)
-			
+
 func set_rid_pid(pid, rid):
 	player_dict[pid].rid = rid
 	player_dict[pid].role_name = role_dict[rid].player_name
@@ -598,7 +632,7 @@ func reborn_stavka() -> void:
 			player_dict[bettor_pid].place = 1
 
 func is_need_uravlolovka() -> bool:
-	if get_alive_count() < 2:
+	if get_alive_count() <= 2:
 		return false
 	max_balance_ = -INF 
 	for pid in player_dict:
@@ -623,17 +657,9 @@ func make_uravnilovka() -> void:
 			player_dict[pid].request = 0
 			player_dict[pid].request_result = new_player_balance-player_balance
 			player_dict[pid].balance = new_player_balance
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
+
+func make_item_auction_result():
+	var auction_result = calc_auction_result("item")
+	for rid in auction_result:
+		if rid == -6:
+			player_dict[auction_result[rid]['pid']].has_immunitet = true

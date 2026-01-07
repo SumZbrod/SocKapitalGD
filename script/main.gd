@@ -28,7 +28,7 @@ var clock := .0
 var wait_time := 5 * 60
 var small_wait_time := 60
 
-var roles_is_setting := false
+var roles_is_setting := true
 
 func _ready() -> void:
 	if OS.has_feature("web"):
@@ -43,8 +43,8 @@ func _ready() -> void:
 			arg = arg.right(-1)
 			var players_names = arg.split(" ")
 			for pl_name in players_names:
-				var code = randi() % 1_0000
-				player_codes[str(code)] = {'name': pl_name, 'not_used': true}
+				var code = str(10_000 + randi() % 10_000).right(-1)
+				player_codes[code] = {'name': pl_name, 'not_used': true}
 				print("%s\t%d" % [pl_name, code])
 		elif arg.begins_with("#"):
 			arg = arg.right(-1)
@@ -65,7 +65,7 @@ func _ready() -> void:
 	else:
 		start_client()
 	
-	add_roles_to_container()
+	add_roles_items_to_container()
 	
 func _process(delta):
 	if peer:
@@ -291,6 +291,10 @@ func _client_change_screen_data(update_date: Dictionary) -> void:
 				if update_date[key]:
 					history_log.visible = true
 					history_log.text = update_date[key]
+			"append_history_log":
+				if update_date[key]:
+					history_log.visible = true
+					history_log.text = history_log.text + '\n' + update_date[key]
 			_:
 				push_warning("[change_screen_data] Uknown key: %s" % key)
 
@@ -423,6 +427,8 @@ func _client_update_player_state(_state):
 ## Отправляет новые данные об экранах универсальную игроков
 func _server_set_requesting_state():
 	clock = wait_time
+	player_list.make_item_auction_result()
+	player_list.reset_auction()
 	player_list.reset_request_vote()
 	player_list.reset_game_data()
 	player_list.set_init_budget()
@@ -480,7 +486,7 @@ func _server_update_game_on_roling(pid: int, player_data: Dictionary) -> void:
 		player_list.reset_auction(pid)
 	player_list.set_ready(pid, true)
 	if player_list.check_all_alive_ready():
-		player_list.calc_auction_result()
+		player_list.make_role_auction_result()
 		_server_set_state_aside(PlayerClass.ROLE_RESULT)
 
 func _server_set_roling_state():
@@ -531,7 +537,10 @@ func _server_set_voting_state():
 func _server_update_game_on_voting(pid: int, player_data: Dictionary) -> void:
 	var vote_pid = player_data['vote_pid'] 
 	var vote_value = player_data["h_slider_value"]
-	if vote_pid > 0 and vote_value > 0:
+	if vote_pid == -6 and vote_value > 0:
+		player_list.reset_vote(pid)
+		player_list.set_auction(pid, vote_pid, vote_value)
+	elif vote_pid > 0 and vote_value > 0:
 		player_list.set_vote(pid, vote_pid, vote_value)
 	else:
 		player_list.reset_vote(pid)
@@ -556,7 +565,7 @@ func _on_change_voting(pid:int):
 			else:
 				next_button.text = "Пропуск"
 		PlayerClass.VOTING:
-			if pid > 0 and h_slider.value > 0:
+			if (pid > 0 or pid == -6) and h_slider.value > 0:
 				next_button.text = "Проголосовать"
 			else:
 				next_button.text = "Пропустить\nголосование"
@@ -687,8 +696,9 @@ func keep_alive_dummy(pid) -> void:
 	if player_list.is_exist(pid):
 		print("[%s]\t%d" % [player_list.get_player_name(pid), pid])
 	
-func add_roles_to_container() -> void:
+func add_roles_items_to_container() -> void:
 	voting_container.add_new_members(player_list.get_role_data_list(), false)
-
+	voting_container.add_new_members(player_list.get_item_data_list(), false)
+	
 func _on_link_button_pressed() -> void:
 	OS.shell_open("https://github.com/SumZbrod/SocKapitalGD")
