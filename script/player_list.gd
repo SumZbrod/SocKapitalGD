@@ -388,10 +388,12 @@ func calc_voting_result(exaption_enable=false):
 			continue
 		if max_vote < voting_dict[pid]:
 			max_vote = voting_dict[pid]
-	if max_vote > 0:
+	if max_vote >= 0:
 		for pid in voting_dict:
 			if player_dict[pid].alive and !player_dict[pid].has_immunitet and voting_dict[pid] >= max_vote:
 				selected_pid.append(pid)
+		if max_vote == 0 and selected_pid.size() > 1:
+			selected_pid = [get_random_most_richer_player()]
 	else:
 		selected_pid = [get_random_most_richer_player()]
 	if immunitet_pid in player_dict:

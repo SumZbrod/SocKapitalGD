@@ -99,7 +99,7 @@ theme_override_font_sizes/font_size = 49
 text = "Присоединиться"
 
 [node name="StateTimer" type="Timer" parent="."]
-wait_time = 2.0
+wait_time = 0.1
 one_shot = true
 
 [node name="Wallpaper" type="NinePatchRect" parent="."]
