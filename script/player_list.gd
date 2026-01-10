@@ -206,9 +206,12 @@ func get_subsidia() -> int:
 	return abs(max_minus)
 	
 func get_voiting_vars_for(pid:int, append_itmes:=true) -> Array:
-	var voting_vars = []
 	if player_dict[pid].rid == -4:
-		return [pid]
+		if get_alive_count() > 2:
+			return [pid, -6]
+		else:
+			return [pid]
+	var voting_vars = []
 	for sub_pid in player_dict:
 		if sub_pid == pid:
 			continue 
@@ -267,7 +270,7 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 				"voting_vars": [],
 			}
 			if player_dict[pid].rid == -3:
-				data["voting_vars"] = get_voiting_vars_for(pid)
+				data["voting_vars"] = get_voiting_vars_for(pid, false)
 				data["next_button"] = "Выбрать на кого\nпоставить"
 		"set_request":
 			if player_dict[pid].rid == -1:
@@ -336,6 +339,7 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 					"h_slider_value": 0,
 					"voting_vars": get_voiting_vars_for(pid),
 					'clear_selaction': true,
+					'message_label':  "На голосование вы поставили: 0",
 				}
 			else:
 				data = {
@@ -346,6 +350,7 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 					"h_slider_value": 0,
 					"voting_vars": get_voiting_vars_for(pid),
 					'clear_selaction': true,
+					'message_label':  "На голосование вы поставили: 0",
 				} 
 	return data
 
