@@ -127,7 +127,10 @@ func get_acc_info(state) -> Dictionary:
 			elif request_result < 0:
 				res['message'] = "Налог: %d" % request_result
 	if has_immunitet:
-		res['message'] += "\nИММУНИТЕТ"
+		if 'message' in res:
+			res['message'] += "\nИММУНИТЕТ"
+		else:
+			res['message'] = "\nИММУНИТЕТ"
 	return res
 
 func _to_string() -> String:

@@ -36,7 +36,7 @@ func _ready() -> void:
 	else:
 		SERVER_URL = "ws://127.0.0.1:" + str(PORT)
 	var args = OS.get_cmdline_args()
-
+	print("args ", args)
 	for arg in args:
 		arg = arg as String
 		if arg.begins_with(">"):
@@ -52,6 +52,12 @@ func _ready() -> void:
 		elif arg.begins_with("^"):
 			arg = arg.right(-1)
 			wait_time = int(arg)
+		elif arg.begins_with("role:"):
+			arg = arg.right(-5)
+			if arg == "0":
+				roles_is_setting = true
+			else:
+				player_list.trim_roles()
 	if !player_codes:
 		var names = "ABCDEXYZW".split()
 		for i in range(start_player_count):

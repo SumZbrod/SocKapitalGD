@@ -49,7 +49,7 @@ func kill(pid: int, place:=-1) -> void:
 				push_warning("[%s:%d] bettor pid can't be equal to your self" % [pid, player_dict[pid].player_name])
 				return
 			kill(player_dict[pid].bettor_pid, place)
-
+		
 func make_gost(pid) -> void:
 	var new_player = PlayerClass.new(pid, 'Gost', 0)
 	new_player.kill()
@@ -207,7 +207,7 @@ func get_subsidia() -> int:
 	
 func get_voiting_vars_for(pid:int, append_itmes:=true) -> Array:
 	if player_dict[pid].rid == -4:
-		if get_alive_count() > 2:
+		if get_alive_count() > 2 and !player_dict[pid].has_immunitet:
 			return [pid, -6]
 		else:
 			return [pid]
@@ -326,7 +326,7 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 					"h_slider_max": get_max_voting_value(pid),
 					"h_slider_value": 0,
 					"voting_vars": get_voiting_vars_for(pid),
-					'message_label': "Вы эти баллы заплатите в двойне",
+					'message_label':  "На голосование вы поставили: 0",
 					'clear_selaction': true,
 					"append_history_log" : get_probiv(pid),
 				} 
@@ -339,7 +339,7 @@ func get_state_screen_data(pid: int, state:String) -> Dictionary:
 					"h_slider_value": 0,
 					"voting_vars": get_voiting_vars_for(pid),
 					'clear_selaction': true,
-					'message_label':  "На голосование вы поставили: 0",
+					'message_label': "Вы эти баллы заплатите в двойне",
 				}
 			else:
 				data = {
@@ -420,7 +420,8 @@ func get_state_log(pid: int, state) -> String:
 	match state:
 		PlayerClass.REQUESTING:
 			if pid_data.rid == -2:
-				res += "{0} пробил {1}\n".format([pid_data.player_name, player_dict[pid_data.probiv_pid].player_name])
+				if pid_data.probiv_pid:
+					res += "{0} пробил {1}\n".format([pid_data.player_name, player_dict[pid_data.probiv_pid].player_name])
 			pid_data = [pid_data.player_name, pid_data.request, pid_data.request_result, pid_data.balance]
 			if is_can_make_request(pid):
 				res += "{0} запросил {1} получил {2} баланс равен {3}\n".format(pid_data)
@@ -448,13 +449,13 @@ func get_state_log(pid: int, state) -> String:
 			var vote_value_
 			for k in pid_data.vote:
 				vote_name_ = player_dict[k].player_name
-				vote_value_ = pid_data.vote[k]
+				vote_value_ = pid_data.vote[k] * get_vote_value_sign(pid, k)
 			if vote_name_:
 				pid_data = [pid_data.player_name, int(vote_value_), vote_name_]
 				if player_dict[pid].rid == -4:
-					res += "{0} поставил в свою защиту -{1}\n".format(pid_data)
-				elif player_dict[pid].rid == -1:
-					res += "{0} поставил -{1} в защиту {2}\n".format(pid_data)
+					res += "{0} поставил в свою защиту {1}\n".format(pid_data)
+				elif player_dict[pid].rid == -1 or vote_value_ < 0:
+					res += "{0} поставил {1} в защиту {2}\n".format(pid_data)
 				else:
 					res += "{0} поставил {1} против {2}\n".format(pid_data)
 			else:
@@ -591,7 +592,9 @@ func is_gameend() -> bool:
 		if player_dict[ksiva_pid].alive:
 			if alive_count <= 2:
 				player_dict[ksiva_pid].kill()
-				return false
+				if player_dict[ksiva_pid].bettor_pid:
+					player_dict[player_dict[ksiva_pid].bettor_pid].kill()
+				return true
 		else:
 			for pid in player_dict:
 				if pid != ksiva_pid:
@@ -670,3 +673,7 @@ func make_item_auction_result():
 	for rid in auction_result:
 		if rid == -6:
 			player_dict[auction_result[rid]['pid']].has_immunitet = true
+
+func trim_roles() -> void:
+	role_dict.erase(-1)
+	role_dict.erase(-2)
