@@ -26,7 +26,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_itxqv")
-start_player_count = 3
+start_player_count = 2
 
 [node name="UpperBlock" type="VBoxContainer" parent="."]
 z_index = 1
@@ -190,6 +190,7 @@ grow_vertical = 2
 texture = ExtResource("7_of57s")
 
 [connection signal="value_changed" from="VBox/HSlider" to="." method="_on_h_slider_value_changed"]
+[connection signal="text_changed" from="VBox/InputField" to="." method="_on_input_field_text_changed"]
 [connection signal="pressed" from="VBox/NextButton" to="." method="_on_next_button_pressed"]
 [connection signal="timeout" from="StateTimer" to="." method="_on_state_timer_timeout"]
 [connection signal="timeout" from="PingTimer" to="." method="_on_ping_timer_timeout"]

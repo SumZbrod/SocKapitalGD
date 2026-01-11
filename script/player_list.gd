@@ -677,3 +677,4 @@ func make_item_auction_result():
 func trim_roles() -> void:
 	role_dict.erase(-1)
 	role_dict.erase(-2)
+	role_dict.erase(-5)

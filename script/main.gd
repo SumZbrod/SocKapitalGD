@@ -103,7 +103,6 @@ func start_server() -> void:
 	
 	multiplayer.multiplayer_peer = peer
 	print("Сервер на порту " + str(PORT))
-	input_field.visible = false
 	
 	multiplayer.peer_connected.connect(_on_player_connected)
 	multiplayer.peer_disconnected.connect(_on_player_disconnected)
@@ -169,14 +168,26 @@ func _client_send_my_data() -> void:
 func _on_next_button_pressed() -> void:
 	clock = 0
 	update_clock()
+
+func update_hslider_by_input_field(text: String) -> void:
+	if !text.is_valid_int():
+		return 
+	var val = int(text)
+	val = int(clamp(val, h_slider.min_value, h_slider.max_value))
+	h_slider.value = val
+	#return str(val)
 	
 func _on_text_submitted(text: String) -> void:
 	if text.strip_edges().is_empty():
+		input_field.clear()
 		return
-	if state != PlayerClass.JOIN:
-		return
-	_server_create_new_player.rpc_id(1, multiplayer.get_unique_id(), text)
+	if state == PlayerClass.JOIN:
+		_server_create_new_player.rpc_id(1, multiplayer.get_unique_id(), text)
+	elif state in [PlayerClass.REQUESTING, PlayerClass.VOTING, PlayerClass.ROLING]:
+		update_hslider_by_input_field(text)
 	_on_next_button_pressed()
+	input_field.clear()
+	input_field.placeholder_text = ''
 
 @rpc("any_peer", "call_remote", "reliable")
 func _server_update_game(pid: int, player_screen_data: Dictionary) -> void:
@@ -263,8 +274,8 @@ func _server_update_game_on_join(pid: int, _player_screen_data:Dictionary) -> vo
 		_server_set_state_aside(PlayerClass.REQUESTING)
 
 func _client_update_submit_screen_on_join():
-	input_field.editable = false
 	input_field.visible = false
+	input_field.editable = false
 	next_button.visible = true
 	next_button.disabled = true
 
@@ -323,12 +334,15 @@ func _client_change_screen_properties() -> void:
 			h_slider.visible = false
 			next_button.visible = false
 			account.visible = false
+			input_field.visible = true
+			input_field.editable = true
 		PlayerClass.REQUESTING:
 			clock = wait_time
 			next_button.disabled = false
 			account.visible = true
 			next_button.visible = true
-			input_field.visible = false
+			input_field.visible = true
+			input_field.editable = true
 			if my_player_account.rid == -2:
 				voting_container.visible = true
 			else:
@@ -343,7 +357,8 @@ func _client_change_screen_properties() -> void:
 			next_button.visible = true
 			voting_container.visible = true
 			account.visible = true
-			input_field.visible = false
+			input_field.visible = true
+			input_field.editable = true
 			h_slider.visible = true
 		PlayerClass.ROLE_RESULT:
 			clock = small_wait_time
@@ -351,6 +366,7 @@ func _client_change_screen_properties() -> void:
 			next_button.visible = true
 			voting_container.visible = true
 			account.visible = true
+			input_field.editable = false
 			input_field.visible = false
 			h_slider.visible = false
 		PlayerClass.VOTING:
@@ -359,19 +375,23 @@ func _client_change_screen_properties() -> void:
 			next_button.visible = true
 			voting_container.visible = true
 			account.visible = true
-			input_field.visible = false
+			input_field.editable = true
+			input_field.visible = true
 			h_slider.visible = true
 		PlayerClass.ELIMINATING:
 			next_button.disabled = false
+			input_field.visible = false
 			voting_container.visible = true
 			h_slider.visible = false
 			next_button.visible = false
 		PlayerClass.URAVNILOVKA:
+			input_field.visible = false
 			next_button.disabled = false
 			voting_container.visible = false
 			h_slider.visible = false
 			next_button.visible = false
 		PlayerClass.GAMEEND:
+			input_field.visible = false
 			next_button.disabled = true
 			next_button.visible = false
 			voting_container.visible = true
@@ -468,6 +488,8 @@ func _client_update_submit_screen_on_requesting():
 	}
 	if my_player_account.rid == -1:
 		update_data['next_button'] = "Ожидайте"
+	input_field.editable = false
+	input_field.visible = false
 	_client_change_screen_data(update_data)
 
 func _on_h_slider_value_changed(value: float) -> void:
@@ -482,6 +504,7 @@ func _on_h_slider_value_changed(value: float) -> void:
 			update_date['message_label'] = "На голосование вы поставили: %d" % int(value)
 			_on_change_voting(voting_container.get_choose())
 	_client_change_screen_data(update_date)
+	#input_field.text = str(int(value))
 
 func _server_update_game_on_roling(pid: int, player_data: Dictionary) -> void:
 	var vote_pid = player_data['vote_pid'] 
@@ -509,6 +532,8 @@ func _client_update_submit_screen_on_roling():
 		"next_button_disabled": true,
 		"slider_editable": false,
 	}
+	input_field.editable = false
+	input_field.visible = false
 	_client_change_screen_data(update_data)
 
 func _server_set_role_result_state():
@@ -562,6 +587,8 @@ func _client_update_submit_screen_on_voting():
 		"slider_editable": false,
 	}
 	_client_change_screen_data(update_data)
+	input_field.editable = false
+	input_field.visible = false
 
 func _on_change_voting(pid:int):
 	match state:
@@ -575,7 +602,7 @@ func _on_change_voting(pid:int):
 				next_button.text = "Проголосовать"
 			else:
 				next_button.text = "Пропустить\nголосование"
-
+	
 func _server_set_eliminating_state():
 	if player_list.vote_winner:
 		var label_state_str := "" 
@@ -708,3 +735,6 @@ func add_roles_items_to_container() -> void:
 	
 func _on_link_button_pressed() -> void:
 	OS.shell_open("https://github.com/SumZbrod/SocKapitalGD")
+
+func _on_input_field_text_changed(new_text: String) -> void:
+	update_hslider_by_input_field(new_text)
