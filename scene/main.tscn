@@ -76,6 +76,11 @@ offset_bottom = -152.0
 grow_horizontal = 2
 grow_vertical = 0
 
+[node name="InputField" type="LineEdit" parent="VBox"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+placeholder_text = "Ваш Код"
+
 [node name="HSlider" type="HSlider" parent="VBox"]
 visible = false
 custom_minimum_size = Vector2(300, 0)
@@ -86,11 +91,6 @@ scrollable = false
 [node name="MessageLabel" type="Label" parent="VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
-
-[node name="InputField" type="LineEdit" parent="VBox"]
-custom_minimum_size = Vector2(200, 0)
-layout_mode = 2
-placeholder_text = "Ваш Код"
 
 [node name="NextButton" type="Button" parent="VBox"]
 visible = false
@@ -189,8 +189,8 @@ grow_horizontal = 2
 grow_vertical = 2
 texture = ExtResource("7_of57s")
 
-[connection signal="value_changed" from="VBox/HSlider" to="." method="_on_h_slider_value_changed"]
 [connection signal="text_changed" from="VBox/InputField" to="." method="_on_input_field_text_changed"]
+[connection signal="value_changed" from="VBox/HSlider" to="." method="_on_h_slider_value_changed"]
 [connection signal="pressed" from="VBox/NextButton" to="." method="_on_next_button_pressed"]
 [connection signal="timeout" from="StateTimer" to="." method="_on_state_timer_timeout"]
 [connection signal="timeout" from="PingTimer" to="." method="_on_ping_timer_timeout"]

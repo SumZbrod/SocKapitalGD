@@ -168,6 +168,7 @@ func _client_send_my_data() -> void:
 func _on_next_button_pressed() -> void:
 	clock = 0
 	update_clock()
+	input_field.text = ''
 
 func update_hslider_by_input_field(text: String) -> void:
 	if !text.is_valid_int():
@@ -325,6 +326,14 @@ func _client_update_acc_info():
 		return
 	account.update(my_player_account.get_acc_info(state))
 
+func change_input_visibility_if_possible(val:bool) -> void:
+	if my_player_account and my_player_account.is_can_make_request():
+		input_field.visible = val
+		input_field.editable = val
+	else:
+		input_field.visible = false
+		input_field.editable = false
+
 # Меняет отображаемые элеементы на экране 
 func _client_change_screen_properties() -> void:
 	_client_update_acc_info()
@@ -341,24 +350,22 @@ func _client_change_screen_properties() -> void:
 			next_button.disabled = false
 			account.visible = true
 			next_button.visible = true
-			input_field.visible = true
-			input_field.editable = true
+			change_input_visibility_if_possible(true)
 			if my_player_account.rid == -2:
 				voting_container.visible = true
 			else:
 				voting_container.visible = false
-			if my_player_account.rid in [-1, -4]:
-				h_slider.visible = false
-			else:
+			if my_player_account.is_can_make_request():
 				h_slider.visible = true
+			else:
+				h_slider.visible = false
 		PlayerClass.ROLING:
 			clock = wait_time
 			next_button.disabled = false
 			next_button.visible = true
 			voting_container.visible = true
 			account.visible = true
-			input_field.visible = true
-			input_field.editable = true
+			change_input_visibility_if_possible(true)
 			h_slider.visible = true
 		PlayerClass.ROLE_RESULT:
 			clock = small_wait_time
@@ -366,8 +373,7 @@ func _client_change_screen_properties() -> void:
 			next_button.visible = true
 			voting_container.visible = true
 			account.visible = true
-			input_field.editable = false
-			input_field.visible = false
+			change_input_visibility_if_possible(false)
 			h_slider.visible = false
 		PlayerClass.VOTING:
 			clock = wait_time
@@ -375,24 +381,23 @@ func _client_change_screen_properties() -> void:
 			next_button.visible = true
 			voting_container.visible = true
 			account.visible = true
-			input_field.editable = true
-			input_field.visible = true
+			change_input_visibility_if_possible(true)
 			h_slider.visible = true
 		PlayerClass.ELIMINATING:
 			next_button.disabled = false
-			input_field.visible = false
+			change_input_visibility_if_possible(false)
 			voting_container.visible = true
 			h_slider.visible = false
 			next_button.visible = false
 		PlayerClass.URAVNILOVKA:
-			input_field.visible = false
+			change_input_visibility_if_possible(false)
 			next_button.disabled = false
 			voting_container.visible = false
 			h_slider.visible = false
 			next_button.visible = false
 		PlayerClass.GAMEEND:
-			input_field.visible = false
 			next_button.disabled = true
+			change_input_visibility_if_possible(false)
 			next_button.visible = false
 			voting_container.visible = true
 			voting_container.disable_accs()

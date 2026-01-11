@@ -579,9 +579,7 @@ func set_rid_pid(pid, rid):
 	role_player_dict[rid] = pid	
 
 func is_can_make_request(pid):
-	if player_dict[pid].rid in [-1, -4]:
-		return false
-	return true
+	return player_dict[pid].is_can_make_request()
 
 func is_gameend() -> bool:
 	var alive_count = get_alive_count()
@@ -659,11 +657,12 @@ func make_uravnilovka() -> void:
 	var c = (sum_balance/2. - mean_balance) / (max_balance_ - mean_balance)
 	if c > 1 or c < 0:
 		push_warning("c should in [0, 1] but equal %d" % c)
+		print("\t\tc should in [0, 1] but equal %d" % c)
 		return
 	for pid in player_dict:
 		if player_dict[pid].alive:
 			var player_balance = player_dict[pid].balance
-			var new_player_balance = int(mean_balance + c*(player_balance-mean_balance))
+			var new_player_balance = (ceili(mean_balance + c*(player_balance-mean_balance)))
 			player_dict[pid].request = 0
 			player_dict[pid].request_result = new_player_balance-player_balance
 			player_dict[pid].balance = new_player_balance

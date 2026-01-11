@@ -150,3 +150,8 @@ func get_probiv() -> String:
 		res_format.append(role_name)
 	var res := '[{0}] Баланс: {1} Запрос: {2} Получил: {3} Роль: {4}'.format(res_format)
 	return res
+
+func is_can_make_request() -> bool:
+	if rid in [-1, -4]:
+		return false
+	return true
