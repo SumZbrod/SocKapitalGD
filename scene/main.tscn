@@ -26,7 +26,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_itxqv")
-start_player_count = 4
+start_player_count = 2
 
 [node name="UpperBlock" type="VBoxContainer" parent="."]
 z_index = 1
@@ -76,6 +76,11 @@ offset_bottom = -152.0
 grow_horizontal = 2
 grow_vertical = 0
 
+[node name="InputField" type="LineEdit" parent="VBox"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+placeholder_text = "Ваш Код"
+
 [node name="HSlider" type="HSlider" parent="VBox"]
 visible = false
 custom_minimum_size = Vector2(300, 0)
@@ -87,11 +92,6 @@ scrollable = false
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
 
-[node name="InputField" type="LineEdit" parent="VBox"]
-custom_minimum_size = Vector2(200, 0)
-layout_mode = 2
-placeholder_text = "Ваш Код"
-
 [node name="NextButton" type="Button" parent="VBox"]
 visible = false
 layout_mode = 2
@@ -99,7 +99,6 @@ theme_override_font_sizes/font_size = 49
 text = "Присоединиться"
 
 [node name="StateTimer" type="Timer" parent="."]
-wait_time = 2.0
 one_shot = true
 
 [node name="Wallpaper" type="NinePatchRect" parent="."]
@@ -165,7 +164,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="PingTimer" type="Timer" parent="."]
-wait_time = 60.0
+wait_time = 20.0
 autostart = true
 
 [node name="LinkButton" type="LinkButton" parent="."]
@@ -190,6 +189,7 @@ grow_horizontal = 2
 grow_vertical = 2
 texture = ExtResource("7_of57s")
 
+[connection signal="text_changed" from="VBox/InputField" to="." method="_on_input_field_text_changed"]
 [connection signal="value_changed" from="VBox/HSlider" to="." method="_on_h_slider_value_changed"]
 [connection signal="pressed" from="VBox/NextButton" to="." method="_on_next_button_pressed"]
 [connection signal="timeout" from="StateTimer" to="." method="_on_state_timer_timeout"]
